@@ -755,8 +755,8 @@ else if (type === 'send_message' && room_id && phone_number && msg) {
 
 
 
-// Middleware
-app.use(cors());
+// good Middlewares
+app.use(cors()); 
 app.use(express.json());
 app.use(helmet());
 app.use(compression());
