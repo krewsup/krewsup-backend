@@ -529,7 +529,7 @@ else if (type === 'fetch_chat_rooms' && phone_number) {
         return { ...event, chat_room: chatRoom };
       })
   );
-
+//ws
   const validEvents = eventsWithChatRooms.filter(event => event !== null);
   const upcomingEvents = [];
   const completedEvents = [];
