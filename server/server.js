@@ -529,7 +529,7 @@ else if (type === 'fetch_chat_rooms' && phone_number) {
         return { ...event, chat_room: chatRoom };
       })
   );
-//ws
+
   const validEvents = eventsWithChatRooms.filter(event => event !== null);
   const upcomingEvents = [];
   const completedEvents = [];
@@ -755,16 +755,17 @@ else if (type === 'send_message' && room_id && phone_number && msg) {
 
 
 
-// good Middlewares
-app.use(cors()); 
+// Middleware
+app.use(cors());
 app.use(express.json());
 app.use(helmet());
 app.use(compression());
 
 // Supabase setup
-const supabaseUrl = 'https://bulearmbgarmitcxkqfk.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1bGVhcm1iZ2FybWl0Y3hrcWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMzI3NzcsImV4cCI6MjA3NDYwODc3N30.3wHmCJhzVrGXV63-u3eCSuNZsa2td0SUkh5lwfXG_a4';
-const supabase = createClient(supabaseUrl, supabaseKey);
+const supabaseUrl = 'https://qqfjpmhfdgftyvnguxmt.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxZmpwbWhmZGdmdHl2bmd1eG10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY3NTg5NjAsImV4cCI6MjA0MjMzNDk2MH0.r4SJj6jw-VmDbNl_k_Mol5myOv2yqopbf5zJnrF3Rkc';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
 
 // Add this function near the top of server.js, after the Supabase setup
 
@@ -1464,91 +1465,91 @@ app.get('/api/v1/user/profile', async (req, res) => {
 });
 
 
- app.put('/api/v1/user/:phone_number/update-details', upload.fields([
-  { name: 'profile_pic', maxCount: 1 },
-  { name: 'aadhar_file', maxCount: 1 },
-]), async (req, res) => {
-  try {
-    const { phone_number } = req.params;
-    const {
-      first_name,
-      last_name,
-      email,
-      location,
-      gender,
-      dob,
-      age,
-      experience,
-      user_type,
-      upi_id
-    } = req.body;
+//  app.put('/api/v1/user/:phone_number/update-details', upload.fields([
+//   { name: 'profile_pic', maxCount: 1 },
+//   { name: 'aadhar_file', maxCount: 1 },
+// ]), async (req, res) => {
+//   try {
+//     const { phone_number } = req.params;
+//     const {
+//       first_name,
+//       last_name,
+//       email,
+//       location,
+//       gender,
+//       dob,
+//       age,
+//       experience,
+//       user_type,
+//       upi_id
+//     } = req.body;
 
-    // Convert uploaded files to base64 (optional)
-    let profilePicUrl = null;
-    if (req.files['profile_pic']) {
-      const file = req.files['profile_pic'][0];
-      const base64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-      profilePicUrl = await uploadBase64ToSupabase(base64, 'profile_pics', `profile_${phone_number}_${Date.now()}.jpg`);
-    }
+//     // Convert uploaded files to base64 (optional)
+//     let profilePicUrl = null;
+//     if (req.files['profile_pic']) {
+//       const file = req.files['profile_pic'][0];
+//       const base64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+//       profilePicUrl = await uploadBase64ToSupabase(base64, 'profile_pics', `profile_${phone_number}_${Date.now()}.jpg`);
+//     }
 
-    let aadharFileUrl = null;
-    if (req.files['aadhar_file']) {
-      const file = req.files['aadhar_file'][0];
-      const base64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
-      aadharFileUrl = await uploadBase64ToSupabase(base64, 'aadhar_files', `aadhar_${phone_number}_${Date.now()}.pdf`);
-    }
+//     let aadharFileUrl = null;
+//     if (req.files['aadhar_file']) {
+//       const file = req.files['aadhar_file'][0];
+//       const base64 = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+//       aadharFileUrl = await uploadBase64ToSupabase(base64, 'aadhar_files', `aadhar_${phone_number}_${Date.now()}.pdf`);
+//     }
 
-    // Build update object dynamically
-    const updateData = {};
-    if (first_name) updateData.first_name = first_name;
-    if (last_name) updateData.last_name = last_name;
-    if (email) updateData.email = email;
-    if (location) updateData.location = location;
-    if (gender) updateData.gender = gender;
-    if (dob) updateData.dob = dob;
-    if (profilePicUrl) updateData.profile_pic = profilePicUrl;
-    if (aadharFileUrl) updateData.aadhar_file = aadharFileUrl;
-    if (age) updateData.age = age;
-    if (experience) updateData.experience = experience;
-    if (user_type) updateData.user_type = user_type;
-    if (upi_id) updateData.upi_id = upi_id;
+//     // Build update object dynamically
+//     const updateData = {};
+//     if (first_name) updateData.first_name = first_name;
+//     if (last_name) updateData.last_name = last_name;
+//     if (email) updateData.email = email;
+//     if (location) updateData.location = location;
+//     if (gender) updateData.gender = gender;
+//     if (dob) updateData.dob = dob;
+//     if (profilePicUrl) updateData.profile_pic = profilePicUrl;
+//     if (aadharFileUrl) updateData.aadhar_file = aadharFileUrl;
+//     if (age) updateData.age = age;
+//     if (experience) updateData.experience = experience;
+//     if (user_type) updateData.user_type = user_type;
+//     if (upi_id) updateData.upi_id = upi_id;
 
-    if (Object.keys(updateData).length === 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'No fields provided to update',
-      });
-    }
+//     if (Object.keys(updateData).length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         error: 'No fields provided to update',
+//       });
+//     }
 
-    const { data, error } = await supabase
-      .from('user1')
-      .update(updateData)
-      .eq('phone_number', phone_number)
-      .select()
-      .single();
+//     const { data, error } = await supabase
+//       .from('user1')
+//       .update(updateData)
+//       .eq('phone_number', phone_number)
+//       .select()
+//       .single();
 
-    if (error) throw error;
+//     if (error) throw error;
 
-    if (!data) {
-      return res.status(404).json({
-        success: false,
-        error: 'User not found',
-      });
-    }
+//     if (!data) {
+//       return res.status(404).json({
+//         success: false,
+//         error: 'User not found',
+//       });
+//     }
 
-    res.status(200).json({
-      success: true,
-      message: 'User details updated successfully',
-      data,
-    });
-  } catch (error) {
-    console.error('Update error:', error.message);
-    res.status(500).json({
-      success: false,
-      error: error.message || 'Update failed',
-    });
-  }
-});
+//     res.status(200).json({
+//       success: true,
+//       message: 'User details updated successfully',
+//       data,
+//     });
+//   } catch (error) {
+//     console.error('Update error:', error.message);
+//     res.status(500).json({
+//       success: false,
+//       error: error.message || 'Update failed',
+//     });
+//   }
+// });
 
 app.put('/api/v1/user/profile', async (req, res) => {
   try {
