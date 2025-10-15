@@ -762,11 +762,13 @@ app.use(helmet());
 app.use(compression());
 
 // Supabase setup
-const supabaseUrl = 'https://qqfjpmhfdgftyvnguxmt.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxZmpwbWhmZGdmdHl2bmd1eG10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY3NTg5NjAsImV4cCI6MjA0MjMzNDk2MH0.r4SJj6jw-VmDbNl_k_Mol5myOv2yqopbf5zJnrF3Rkc';
+// const supabaseUrl = 'https://bulearmbgarmitcxkqfk.supabase.co';
+// const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1bGVhcm1iZ2FybWl0Y3hrcWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMzI3NzcsImV4cCI6MjA3NDYwODc3N30.3wHmCJhzVrGXV63-u3eCSuNZsa2td0SUkh5lwfXG_a4';
+// const supabase = createClient(supabaseUrl, supabaseKey);
+
+const supabaseUrl = 'https://bulearmbgarmitcxkqfk.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1bGVhcm1iZ2FybWl0Y3hrcWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMzI3NzcsImV4cCI6MjA3NDYwODc3N30.3wHmCJhzVrGXV63-u3eCSuNZsa2td0SUkh5lwfXG_a4';
 const supabase = createClient(supabaseUrl, supabaseKey);
-
-
 // Add this function near the top of server.js, after the Supabase setup
 
 
