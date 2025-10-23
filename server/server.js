@@ -58,8 +58,8 @@ const rooms = new Map(); // Map of room_id to Set of WebSocket connections
 const fetch = require('node-fetch');
 
 // Supabase API base URL and authentication details
-// const SUPABASE_URL = 'https://qqfjpmhfdgftyvnguxmt.supabase.co';
-// const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxZmpwbWhmZGdmdHl2bmd1eG10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY3NTg5NjAsImV4cCI6MjA0MjMzNDk2MH0.r4SJj6jw-VmDbNl_k_Mol5myOv2yqopbf5zJnrF3Rkc';
+const SUPABASE_URL = 'https://qqfjpmhfdgftyvnguxmt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxZmpwbWhmZGdmdHl2bmd1eG10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY3NTg5NjAsImV4cCI6MjA0MjMzNDk2MH0.r4SJj6jw-VmDbNl_k_Mol5myOv2yqopbf5zJnrF3Rkc';
 
 async function uploadBase64ToSupabase(base64, bucket, fileName) {
   try {
@@ -91,6 +91,35 @@ async function uploadBase64ToSupabase(base64, bucket, fileName) {
 
 
 // Function to send a notification via the Supabase Edge Function
+async function sendNotification(fcmToken, title, body) {
+  try {
+    const url = `${SUPABASE_URL}/functions/v1/send-notification`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+      },
+      body: JSON.stringify({
+        fcm_token: fcmToken,
+        title: title,
+        body: body,
+      }),
+    });
+
+    const result = await response.json();
+    if (!response.ok) {
+      console.error(`[${new Date().toISOString()}] Failed to send notification:`, result.error || result);
+      return false;
+    }
+
+    console.log(`[${new Date().toISOString()}] Notification sent successfully:`, result);
+    return true;
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Error sending notification:`, error.message);
+    return false;
+  }
+}
 
 
 // // Function to test the POST API (send-notification)
@@ -734,6 +763,8 @@ app.use(compression());
 const supabaseUrl = 'https://bulearmbgarmitcxkqfk.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1bGVhcm1iZ2FybWl0Y3hrcWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMzI3NzcsImV4cCI6MjA3NDYwODc3N30.3wHmCJhzVrGXV63-u3eCSuNZsa2td0SUkh5lwfXG_a4';
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+
 // Add this function near the top of server.js, after the Supabase setup
 
 
@@ -2877,66 +2908,66 @@ app.get('/api/v1/user/organizer/details', async (req, res) => {
       });
     }
   });
-//  app.put('/api/v1/user/:phone_number/update-details', async (req, res) => {
-//     try {
-//       const { phone_number } = req.params;
-//       const { profile_pic, aadhar_file, ...otherData } = req.body;
+ app.put('/api/v1/user/:phone_number/update-details', async (req, res) => {
+    try {
+      const { phone_number } = req.params;
+      const { profile_pic, aadhar_file, ...otherData } = req.body;
   
-//       // Validate input
-//       if (!phone_number) {
-//         return res.status(400).json({
-//           success: false,
-//           error: "Phone number is required"
-//         });
-//       }
+      // Validate input
+      if (!phone_number) {
+        return res.status(400).json({
+          success: false,
+          error: "Phone number is required"
+        });
+      }
   
-//       // Process profile_pic (accepts URL or Base64)
-//       let profilePicUrl = profile_pic;
-//       if (profile_pic && profile_pic.startsWith('data:image')) {
-//         profilePicUrl = await uploadBase64ToSupabase(
-//           profile_pic, 
-//           'profile_pics',
-//           `profile_${phone_number}_${Date.now()}.jpg`
-//         );
-//       }
+      // Process profile_pic (accepts URL or Base64)
+      let profilePicUrl = profile_pic;
+      if (profile_pic && profile_pic.startsWith('data:image')) {
+        profilePicUrl = await uploadBase64ToSupabase(
+          profile_pic, 
+          'profile_pics',
+          `profile_${phone_number}_${Date.now()}.jpg`
+        );
+      }
   
-//       // Process aadhar_file (accepts URL or Base64)
-//       let aadharFileUrl = aadhar_file;
-//       if (aadhar_file && aadhar_file.startsWith('data:application')) {
-//         aadharFileUrl = await uploadBase64ToSupabase(
-//           aadhar_file,
-//           'aadhar_files',
-//           `aadhar_${phone_number}_${Date.now()}.pdf`
-//         );
-//       }
+      // Process aadhar_file (accepts URL or Base64)
+      let aadharFileUrl = aadhar_file;
+      if (aadhar_file && aadhar_file.startsWith('data:application')) {
+        aadharFileUrl = await uploadBase64ToSupabase(
+          aadhar_file,
+          'aadhar_files',
+          `aadhar_${phone_number}_${Date.now()}.pdf`
+        );
+      }
   
-//       // Update user in Supabase
-//       const { data, error } = await supabase
-//         .from('user1')
-//         .update({
-//           ...otherData,
-//           ...(profilePicUrl && { profile_pic: profilePicUrl }),
-//           ...(aadharFileUrl && { aadhar_file: aadharFileUrl })
-//         })
-//         .eq('phone_number', phone_number)
-//         .select();
+      // Update user in Supabase
+      const { data, error } = await supabase
+        .from('user1')
+        .update({
+          ...otherData,
+          ...(profilePicUrl && { profile_pic: profilePicUrl }),
+          ...(aadharFileUrl && { aadhar_file: aadharFileUrl })
+        })
+        .eq('phone_number', phone_number)
+        .select();
   
-//       if (error) throw error;
+      if (error) throw error;
   
-//       res.status(200).json({
-//         success: true,
-//         message: "User details updated successfully",
-//         data: data[0]
-//       });
+      res.status(200).json({
+        success: true,
+        message: "User details updated successfully",
+        data: data[0]
+      });
   
-//     } catch (error) {
-//       console.error("Update error:", error.message);
-//       res.status(500).json({
-//         success: false,
-//         error: error.message || "Update failed"
-//       });
-//     }
-//   });
+    } catch (error) {
+      console.error("Update error:", error.message);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Update failed"
+      });
+    }
+  });
 
 app.get('/api/user/applied-events/:phone_number/:event_id', async (req, res) => {
   try {
