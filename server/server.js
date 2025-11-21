@@ -1,5 +1,5 @@
-const express = require('express');
-const http = require('http');
+const express = require('express');       
+const https = require('https');
 const WebSocket = require('ws');
 const helmet = require('helmet');
 const axios = require('axios');
@@ -10,14 +10,98 @@ const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
 const Razorpay = require('razorpay');
 const { differenceInDays } = require('date-fns');
+const fs = require('fs');
 
 // const { differenceInDays } = require('date-fns');
+
+
+// SSL Certificate and Key directly embedded in code
+const sslOptions = {
+  key: `-----BEGIN PRIVATE KEY-----
+MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQCojuLyvHMUARuF
+h4lboD2kwXn199Vo2e8G/o9WqLF8NGAmnDyP9b+cKF5ny0cSv+jp8uHJzWyX2EW2
+8GNrMmZEdh2v5QIKAYQu/5T70CVjElq6DGEPakF+GS2wJ+Y5MTPC5duaLdVLdtgp
+O+QxlbqN90wPjtAluM+YG2gOex4G3FDCRBBljm672ftpyuvTGQ/J6SOWc85wASx/
+Tyh49jmXDTo3k7OZp09W9r1uYm0RA5nKyNX5gL4veAVZyeRjoTV7A7wU/ZkkfDJE
+hDDGMclLa23xbdym6TXFv5X5o8bIW1nlXM02JH03SdAEA8567/FHV7j9P1KLQTz7
+DHbMQ1CPAgMBAAECggEAB8McvGTlP8SVSd7l+mw0qoOmZCdXko6GrWHHpAv8sGWR
+D/Yd69s7SauqPUllKn3f8fYXY72sBIoXG8eSLHuTrg9qapE3ONK9DZUDfV0me5t6 
+xhqP1a/k+DOcoQIVXgjgA1emd0EpE2KTrcJuTcJBZww+WnEPMM2D8dNBRXlx9orX
+lUEXzdpY0+0wGytbwHnri1/i1GuwRpkJdYptrgmo2mdPu0eipu1cVvv7lsRTsre5
+IDYClCbeL3YAF94yXLLVhYDML9Wh6ThvTU5VdKIeKmok0v3nmUyh8SNqLmwZG+AG
+YQRdkSZ3G6vtXON52mak9hrswPCZ+rP7utERwCmKwQKBgQDgH6MDbYkPxP2kNkrz
+eD5FaA8dsSj32ByU/RuVCYTqcdNbBpbu+a/1JURLys+jY5mD0z5EaUubx8seEEJZ
+0s29sE0IJqfYfRQVpGVOTS1LuGRrWVpDFCJOdWyFOiRax1hMevd+DUyXTtsvRbgt
+i2Fg3G/+oPnjNIFKagHyClZunwKBgQDAiBtHFAAN2Vcp3+iQtqmXNUhHA8j/dFMy
+sC+SCeEIOhQyxy4kQlGq6u0YADVxCDm/ynzuAha9GMXhMOfh2+EFa4N+xv3lZTbe
+jlaibt/ywaeP/BuF9ivosL1SwVcV0xxO+zZvxe91FHP4CxM+Cn0k92JPqa+OnPzQ
+kabi+k8IEQKBgEX4+p7+WrVmrj3PiZT77I0k0NtXTVAb08icQTlFsI61nOQlaYgQ
+wmPKD8mN90eut+YVVLJtIWLwfLTVJLIAg6V+Xn51+x825cdf/RT2OXcTiZ6OVgTt
+S0ytkoUBwwnohOPT3GMpackvoHTg0oC9rFheWkToIzxRTzBZamQT4CpHAoGAOmfP
+ppNJpOneyEQ1f9j5v3YZc/mQ+vWl24WZGLtIeb9sqy7DL5qyvZ/AxvwhOiXdpvHd
+TjJyBXFDbhnw7hJOw98mp8nj8bfvmjohy+rIoxLeKw62pr/T+CXNeRJPwb4mI0uP
+6v5nsuO+fmuVrcduyU0GlNYL/L5g70CQGOEIIpECgYAF6gzNVLP60E/wvu92lpSq
+Mp8n48kt9JyAc4CVx5nNeXwlie6m76bR5QjCLIXu4o/rTObTGLmbbwGW4MqIIsvu
+6Fo9ifVtHG+0yjCASHNYIFvBqrzqQ9jOh8rqgYZ3QvgNzMtQA1Ktl0PTavwCA/8Y
+7yZ/JK2AzhF6G2E3xBjQiQ==
+-----END PRIVATE KEY-----`,
+  cert: `-----BEGIN CERTIFICATE-----
+MIIDjzCCAnegAwIBAgIUMfj3zeMw0PfYALfFldk/4Nw6WPwwDQYJKoZIhvcNAQEL
+BQAwVzELMAkGA1UEBhMCVVMxDjAMBgNVBAgMBVN0YXRlMQ0wCwYDVQQHDARDaXR5
+MRUwEwYDVQQKDAxPcmdhbml6YXRpb24xEjAQBgNVBAMMCWxvY2FsaG9zdDAeFw0y
+NTEwMDExNjU3MDVaFw0yNjEwMDExNjU3MDVaMFcxCzAJBgNVBAYTAlVTMQ4wDAYD
+VQQIDAVTdGF0ZTENMAsGA1UEBwwEQ2l0eTEVMBMGA1UECgwMT3JnYW5pemF0aW9u
+MRIwEAYDVQQDDAlsb2NhbGhvc3QwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEK
+AoIBAQCojuLyvHMUARuFh4lboD2kwXn199Vo2e8G/o9WqLF8NGAmnDyP9b+cKF5n
+y0cSv+jp8uHJzWyX2EW28GNrMmZEdh2v5QIKAYQu/5T70CVjElq6DGEPakF+GS2w
+J+Y5MTPC5duaLdVLdtgpO+QxlbqN90wPjtAluM+YG2gOex4G3FDCRBBljm672ftp
+yuvTGQ/J6SOWc85wASx/Tyh49jmXDTo3k7OZp09W9r1uYm0RA5nKyNX5gL4veAVZ
+yeRjoTV7A7wU/ZkkfDJEhDDGMclLa23xbdym6TXFv5X5o8bIW1nlXM02JH03SdAE
+A8567/FHV7j9P1KLQTz7DHbMQ1CPAgMBAAGjUzBRMB0GA1UdDgQWBBSxfxa5YPBy
+z5Ld9yHz2GAVCy5tdTAfBgNVHSMEGDAWgBSxfxa5YPByz5Ld9yHz2GAVCy5tdTAP
+BgNVHRMBAf8EBTADAQH/MA0GCSqGSIb3DQEBCwUAA4IBAQCfRL4foEk3LBb5q/gk
+QEOlg8giAfO4U8FceovaHZJjwHt0ui7Ucx+uDc9zNgMVNJISKDdqGLNNokDI+50W
+8hBH/JDjDOiWQlC53b3IKE8ugPBq8hGVKGtI4Ish82zo8OYV1lhf1k44fKeMHxYy
+3cwK9yFEBxMe/8blMPWWj/5rEMN3d11HdDhHveopN5XqR5vAXB031oWcCLwE572N
+CDxwDTDR+Jml3jsd1biu3WG4cjslB41oHkwxZLICxJyE5dbl4I84ebqL4t5DRC/r
+4gS0uH8hta2h5kce4R6iGnZhs+MGfYKrparJJ1BRaIAuoCW25ttlaNpsAoOvvhkD
+cmiy
+-----END CERTIFICATE-----`
+};
+
+
 
 const upload = multer({ storage: multer.memoryStorage() });
 const app = express();
 
 // Add middleware to parse JSON bodies
 app.use(express.json());
+app.use(cors({
+  origin: "*",
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+}));
+
+
+
+
+// Add this after your middleware setup
+app.use((req, res, next) => {
+  // Trust the load balancer's headers for protocol and IP
+  if (req.headers['x-forwarded-proto'] === 'https') {
+    req.protocol = 'https';
+  }
+  if (req.headers['x-forwarded-for']) {
+    req.ip = req.headers['x-forwarded-for'].split(',')[0].trim();
+  }
+  next();
+});
+
+// Also update your CORS configuration
+app.use(cors({
+  origin: true, // or specify your domains
+  credentials: true,
+}));
+
 
 const queryWithRetry = async (queryFn, retries = 3, baseDelay = 1500) => {
   for (let i = 0; i < retries; i++) {
@@ -38,8 +122,8 @@ const queryWithRetry = async (queryFn, retries = 3, baseDelay = 1500) => {
 };
 
 
-// Create an HTTP server for Express
-const server = http.createServer(app);
+// Create HTTPS server for Express
+const server = https.createServer(sslOptions, app);
 
 const FCM_SERVER_KEY = 'BI3k1kAiq4ftHigCl3n2PMlMVBYIKOnXcOBYO6yofifcUTEly5TTFa_msDUYARAqLTaJWmfOO-zaI7CmQ-f1MvA';
 
@@ -58,8 +142,8 @@ const rooms = new Map(); // Map of room_id to Set of WebSocket connections
 const fetch = require('node-fetch');
 
 // Supabase API base URL and authentication details
-// const SUPABASE_URL = 'https://qqfjpmhfdgftyvnguxmt.supabase.co';
-// const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxZmpwbWhmZGdmdHl2bmd1eG10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY3NTg5NjAsImV4cCI6MjA0MjMzNDk2MH0.r4SJj6jw-VmDbNl_k_Mol5myOv2yqopbf5zJnrF3Rkc';
+const SUPABASE_URL = 'https://qqfjpmhfdgftyvnguxmt.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxZmpwbWhmZGdmdHl2bmd1eG10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY3NTg5NjAsImV4cCI6MjA0MjMzNDk2MH0.r4SJj6jw-VmDbNl_k_Mol5myOv2yqopbf5zJnrF3Rkc';
 
 async function uploadBase64ToSupabase(base64, bucket, fileName) {
   try {
@@ -91,81 +175,35 @@ async function uploadBase64ToSupabase(base64, bucket, fileName) {
 
 
 // Function to send a notification via the Supabase Edge Function
+async function sendNotification(fcmToken, title, body) {
+  try {
+    const url = `${SUPABASE_URL}/functions/v1/send-notification`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${SUPABASE_KEY}`,
+      },
+      body: JSON.stringify({
+        fcm_token: fcmToken,
+        title: title,
+        body: body,
+      }),
+    });
 
+    const result = await response.json();
+    if (!response.ok) {
+      console.error(`[${new Date().toISOString()}] Failed to send notification:`, result.error || result);
+      return false;
+    }
 
-// // Function to test the POST API (send-notification)
-// async function testPostApi() {
-//   const fcmToken = 'dppwxaPIRsOG9OxeOYYiex:APA91bGMQOl8kJXxSKBH66_i43K9NNOqrIFAM4RQF6GSFtuCMgI9pDtuiGir_gh6BGzPUKDzj2Yi7yACglmk6IP8ePffYd2qyzyJyS-MSsDWtVwQ0wtozAg'; // Replace with a valid FCM token
-//   const title = 'Test Notification';
-//   const body = 'This is a test notification from fida';
-
-//   try {
-//     const success = await sendNotification(fcmToken, title, body);
-//     const response = { success, message: success ? 'Notification sent' : 'Notification failed' };
-//     console.log('POST API Response:', response);
-
-//     if (!success) {
-//       throw new Error('POST API failed: Notification could not be sent');
-//     }
-
-//     return response;
-//   } catch (error) {
-//     console.error('Error in POST API:', error.message);
-//     throw error;
-//   }
-// }
-
-// // Function to test the PATCH API (update fcm_token in user1 table)
-// async function testPatchApi() {
-//   const url = `${SUPABASE_URL}/rest/v1/user1?id=eq.1`; // Replace id=eq.1 with your condition
-//   const body = {
-//     fcm_token: 'dppwxaPIRsOG9OxeOYYiex:APA91bGMQOl8kJXxSKBH66_i43K9NNOqrIFAM4RQF6GSFtuCMgI9pDtuiGir_gh6BGzPUKDzj2Yi7yACglmk6IP8ePffYd2qyzyJyS-MSsDWtVwQ0wtozAg', // Replace with a valid FCM token
-//   };
-
-//   try {
-//     const response = await fetch(url, {
-//       method: 'PATCH',
-//       headers: {
-//         'Content-Type': 'application/json',
-//         'Authorization': `Bearer ${SUPABASE_KEY}`,
-//         'apikey': SUPABASE_KEY,
-//         'Prefer': 'return=representation',
-//       },
-//       body: JSON.stringify(body),
-//     });
-
-//     const data = await response.json();
-//     console.log('PATCH API Response:', data);
-
-//     if (!response.ok) {
-//       throw new Error(`PATCH API failed: ${response.status} - ${JSON.stringify(data)}`);
-//     }
-
-//     return data;
-//   } catch (error) {
-//     console.error('Error in PATCH API:', error.message);
-//     throw error;
-//   }
-// }
-
-// // Run the tests
-// async function runTests() {
-//   try {
-//     console.log('Testing PATCH API...');
-//     await testPatchApi();
-
-//     console.log('\nTesting POST API...');
-//     await testPostApi();
-//   } catch (error) {
-//     console.error('Test failed:', error.message);
-//   }
-// }
-
-// // Execute the tests
-// runTests();
-
-
-
+    console.log(`[${new Date().toISOString()}] Notification sent successfully:`, result);
+    return true;
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Error sending notification:`, error.message);
+    return false;
+  }
+}
 
 
 wss.on('connection', (ws) => {
@@ -179,7 +217,6 @@ wss.on('connection', (ws) => {
 
       // Join a room and fetch event details
       if (type === 'join_room' && room_id) {
-        // Existing join_room logic (unchanged)
         // Validate UUID format for room_id
         const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
         if (!uuidRegex.test(room_id)) {
@@ -303,234 +340,231 @@ wss.on('connection', (ws) => {
       }
 
       // Fetch messages for a chat room
-
-// Handle fetch_messages
-if (type === 'fetch_messages' && room_id && phone_number) {
-  // Step 1: Input Validation
-  if (!room_id || !phone_number) {
-    ws.send(JSON.stringify({
-      success: false,
-      error: 'room_id and phone_number are required',
-    }));
-    return;
-  }
-
-  // Validate UUID format for room_id
-  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-  if (!uuidRegex.test(room_id)) {
-    ws.send(JSON.stringify({
-      success: false,
-      error: 'Invalid room_id format. Must be a valid UUID.',
-    }));
-    return;
-  }
-
-  // Validate phone_number format
-  const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-  if (!phoneRegex.test(phone_number)) {
-    ws.send(JSON.stringify({
-      success: false,
-      error: 'Invalid phone_number format. Must be a valid phone number with optional country code.',
-    }));
-    return;
-  }
-
-  // Step 2: Verify user access by checking the associated event
-  const { data: chatRoom, error: roomError } = await supabase
-    .from('chat_rooms')
-    .select(`
-      event_id,
-      event_create!event_create_id_fkey (
-        organizer_phone_number,
-        accepted_members,
-        start_date
-      )
-    `)
-    .eq('id', room_id)
-    .single();
-
-  if (roomError) {
-    console.error('Supabase Fetch Error (chat room):', roomError);
-    ws.send(JSON.stringify({
-      success: false,
-      error: 'Failed to fetch chat room details',
-      details: roomError.message,
-    }));
-    return;
-  }
-
-  if (!chatRoom || !chatRoom.event_create) {
-    ws.send(JSON.stringify({
-      success: false,
-      error: 'Chat room or associated event not found',
-    }));
-    return;
-  }
-
-  const event = chatRoom.event_create;
-  const acceptedMembers = event.accepted_members || [];
-  const isAuthorized =
-    event.organizer_phone_number === phone_number || acceptedMembers.includes(phone_number);
-
-  if (!isAuthorized) {
-    ws.send(JSON.stringify({
-      success: false,
-      error: 'You are not authorized to view messages in this chat room',
-    }));
-    return;
-  }
-
-  // Step 3: Fetch all messages in the room
-  const { data: messages, error: messagesError } = await supabase
-    .from('chat_messages')
-    .select('id, room_id, phone_number, message, timestamp')
-    .eq('room_id', room_id)
-    .order('timestamp', { ascending: true });
-
-  if (messagesError) {
-    console.error('Supabase Query Error:', messagesError);
-    ws.send(JSON.stringify({
-      success: false,
-      error: 'Failed to fetch messages',
-      details: messagesError.message,
-    }));
-    return;
-  }
-
-  // Step 4: Fetch company names from company_registration
-  const { data: companyData, error: companyError } = await supabase
-    .from('company_registration')
-    .select('phone_number, company_name');
-  if (companyError) {
-    console.error('Supabase Fetch Error (company):', companyError);
-  }
-  const companyMap = companyData.reduce((map, company) => {
-    map[company.phone_number] = company.company_name;
-    return map;
-  }, {});
-
-  // Step 5: Fetch user names from user1
-  const { data: userData, error: userError } = await supabase
-    .from('user1')
-    .select('phone_number, first_name, last_name');
-  if (userError) {
-    console.error('Supabase Fetch Error (user):', userError);
-  }
-  const userMap = userData.reduce((map, user) => {
-    map[user.phone_number] = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown User';
-    return map;
-  }, {});
-
-  // Step 6: Enrich messages with sender details
-  const enrichedMessages = messages.map(msg => {
-    let senderName = 'Unknown';
-    let senderType = 'unknown';
-
-    if (companyMap[msg.phone_number]) {
-      senderName = companyMap[msg.phone_number];
-      senderType = 'organizer';
-    } else if (userMap[msg.phone_number]) {
-      senderName = userMap[msg.phone_number];
-      senderType = 'gig_worker';
-    }
-
-    return {
-      ...msg,
-      sender_name: senderName,
-      sender_type: senderType,
-    };
-  });
-
-  // Step 7: Format and send response
-  ws.send(JSON.stringify({
-    success: true,
-    message: enrichedMessages.length > 0 ? 'Messages fetched successfully' : 'No messages found',
-    data: {
-      event_start_date: event.start_date || 'N/A',
-      messages: enrichedMessages,
-    },
-  }));
-  return;
-}
-
-
-        
-    // Update fetch_chat_rooms to include start_time and end_time
-else if (type === 'fetch_chat_rooms' && phone_number) {
-  const { data: allEvents, error: fetchError } = await supabase
-    .from('event_create')
-    .select(`
-      id,
-      event_name,
-      organizer_phone_number,
-      accepted_members,
-      start_date,
-      end_date,
-      start_time,
-      end_time,
-      status,
-      chat_rooms!event_create_id_fkey (id, room_name)
-    `)
-    .or(`organizer_phone_number.eq.${phone_number},accepted_members.cs.{${phone_number}}`);
-
-  if (fetchError || !allEvents) {
-    ws.send(JSON.stringify({
-      success: false,
-      error: 'Failed to fetch events',
-    }));
-    return;
-  }
-
-  const eventsWithChatRooms = await Promise.all(
-    allEvents
-      .filter(event => (event.accepted_members || []).length > 0)
-      .map(async (event) => {
-        let chatRoom = event.chat_rooms && event.chat_rooms.length > 0 ? event.chat_rooms[0] : null;
-        if (!chatRoom) {
-          const { data: newChatRoom, error: chatRoomError } = await supabase
-            .from('chat_rooms')
-            .insert([{ event_id: event.id, room_name: `${event.event_name} Chat Room` }])
-            .select('id, room_name')
-            .single();
-          if (chatRoomError) return null;
-          chatRoom = newChatRoom;
+      if (type === 'fetch_messages' && room_id && phone_number) {
+        // Step 1: Input Validation
+        if (!room_id || !phone_number) {
+          ws.send(JSON.stringify({
+            success: false,
+            error: 'room_id and phone_number are required',
+          }));
+          return;
         }
-        return { ...event, chat_room: chatRoom };
-      })
-  );
 
-  const validEvents = eventsWithChatRooms.filter(event => event !== null);
-  const upcomingEvents = [];
-  const completedEvents = [];
-  const currentDate = new Date();
+        // Validate UUID format for room_id
+        const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+        if (!uuidRegex.test(room_id)) {
+          ws.send(JSON.stringify({
+            success: false,
+            error: 'Invalid room_id format. Must be a valid UUID.',
+          }));
+          return;
+        }
 
-  validEvents.forEach(event => {
-    const acceptedMembers = event.accepted_members || [];
-    const totalMembers = (event.organizer_phone_number ? 1 : 0) + acceptedMembers.length;
-    const eventDetails = {
-      id: event.id,
-      room_id: event.chat_room.id,
-      event_name: event.event_name || 'Unnamed Event',
-      start_date: event.start_date ? event.start_date.split('-').slice(1).join('/') : 'N/A',
-      end_date: event.end_date ? event.end_date.split('-').slice(1).join('/') : 'N/A',
-      start_time: event.start_time || null,
-      end_time: event.end_time || null,
-      total_members: totalMembers,
-      organizer_phone_number: event.organizer_phone_number || 'N/A',
-      accepted_members: acceptedMembers,
-      status: event.status || 'upcoming',
-    };
-    const endDate = new Date(event.end_date || '1970-01-01');
-    if (event.end_time || endDate < currentDate) completedEvents.push(eventDetails);
-    else upcomingEvents.push(eventDetails);
-  });
+        // Validate phone_number format
+        const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+        if (!phoneRegex.test(phone_number)) {
+          ws.send(JSON.stringify({
+            success: false,
+            error: 'Invalid phone_number format. Must be a valid phone number with optional country code.',
+          }));
+          return;
+        }
 
-  ws.send(JSON.stringify({
-    success: true,
-    message: 'Chat rooms fetched successfully',
-    data: { upcoming_events: upcomingEvents, completed_events: completedEvents },
-  }));
-}
+        // Step 2: Verify user access by checking the associated event
+        const { data: chatRoom, error: roomError } = await supabase
+          .from('chat_rooms')
+          .select(`
+            event_id,
+            event_create!event_create_id_fkey (
+              organizer_phone_number,
+              accepted_members,
+              start_date
+            )
+          `)
+          .eq('id', room_id)
+          .single();
+
+        if (roomError) {
+          console.error('Supabase Fetch Error (chat room):', roomError);
+          ws.send(JSON.stringify({
+            success: false,
+            error: 'Failed to fetch chat room details',
+            details: roomError.message,
+          }));
+          return;
+        }
+
+        if (!chatRoom || !chatRoom.event_create) {
+          ws.send(JSON.stringify({
+            success: false,
+            error: 'Chat room or associated event not found',
+          }));
+          return;
+        }
+
+        const event = chatRoom.event_create;
+        const acceptedMembers = event.accepted_members || [];
+        const isAuthorized =
+          event.organizer_phone_number === phone_number || acceptedMembers.includes(phone_number);
+
+        if (!isAuthorized) {
+          ws.send(JSON.stringify({
+            success: false,
+            error: 'You are not authorized to view messages in this chat room',
+          }));
+          return;
+        }
+
+        // Step 3: Fetch all messages in the room
+        const { data: messages, error: messagesError } = await supabase
+          .from('chat_messages')
+          .select('id, room_id, phone_number, message, timestamp')
+          .eq('room_id', room_id)
+          .order('timestamp', { ascending: true });
+
+        if (messagesError) {
+          console.error('Supabase Query Error:', messagesError);
+          ws.send(JSON.stringify({
+            success: false,
+            error: 'Failed to fetch messages',
+            details: messagesError.message,
+          }));
+          return;
+        }
+
+        // Step 4: Fetch company names from company_registration
+        const { data: companyData, error: companyError } = await supabase
+          .from('company_registration')
+          .select('phone_number, company_name');
+        if (companyError) {
+          console.error('Supabase Fetch Error (company):', companyError);
+        }
+        const companyMap = companyData?.reduce((map, company) => {
+          map[company.phone_number] = company.company_name;
+          return map;
+        }, {}) || {};
+
+        // Step 5: Fetch user names from user1
+        const { data: userData, error: userError } = await supabase
+          .from('user1')
+          .select('phone_number, first_name, last_name');
+        if (userError) {
+          console.error('Supabase Fetch Error (user):', userError);
+        }
+        const userMap = userData?.reduce((map, user) => {
+          map[user.phone_number] = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown User';
+          return map;
+        }, {}) || {};
+
+        // Step 6: Enrich messages with sender details
+        const enrichedMessages = messages.map(msg => {
+          let senderName = 'Unknown';
+          let senderType = 'unknown';
+
+          if (companyMap[msg.phone_number]) {
+            senderName = companyMap[msg.phone_number];
+            senderType = 'organizer';
+          } else if (userMap[msg.phone_number]) {
+            senderName = userMap[msg.phone_number];
+            senderType = 'gig_worker';
+          }
+
+          return {
+            ...msg,
+            sender_name: senderName,
+            sender_type: senderType,
+          };
+        });
+
+        // Step 7: Format and send response
+        ws.send(JSON.stringify({
+          success: true,
+          message: enrichedMessages.length > 0 ? 'Messages fetched successfully' : 'No messages found',
+          data: {
+            event_start_date: event.start_date || 'N/A',
+            messages: enrichedMessages,
+          },
+        }));
+        return;
+      }
+
+      // Update fetch_chat_rooms to include start_time and end_time
+      else if (type === 'fetch_chat_rooms' && phone_number) {
+        const { data: allEvents, error: fetchError } = await supabase
+          .from('event_create')
+          .select(`
+            id,
+            event_name,
+            organizer_phone_number,
+            accepted_members,
+            start_date,
+            end_date,
+            start_time,
+            end_time,
+            status,
+            chat_rooms!event_create_id_fkey (id, room_name)
+          `)
+          .or(`organizer_phone_number.eq.${phone_number},accepted_members.cs.{${phone_number}}`);
+
+        if (fetchError || !allEvents) {
+          ws.send(JSON.stringify({
+            success: false,
+            error: 'Failed to fetch events',
+          }));
+          return;
+        }
+
+        const eventsWithChatRooms = await Promise.all(
+          allEvents
+            .filter(event => (event.accepted_members || []).length > 0)
+            .map(async (event) => {
+              let chatRoom = event.chat_rooms && event.chat_rooms.length > 0 ? event.chat_rooms[0] : null;
+              if (!chatRoom) {
+                const { data: newChatRoom, error: chatRoomError } = await supabase
+                  .from('chat_rooms')
+                  .insert([{ event_id: event.id, room_name: `${event.event_name} Chat Room` }])
+                  .select('id, room_name')
+                  .single();
+                if (chatRoomError) return null;
+                chatRoom = newChatRoom;
+              }
+              return { ...event, chat_room: chatRoom };
+            })
+        );
+
+        const validEvents = eventsWithChatRooms.filter(event => event !== null);
+        const upcomingEvents = [];
+        const completedEvents = [];
+        const currentDate = new Date();
+
+        validEvents.forEach(event => {
+          const acceptedMembers = event.accepted_members || [];
+          const totalMembers = (event.organizer_phone_number ? 1 : 0) + acceptedMembers.length;
+          const eventDetails = {
+            id: event.id,
+            room_id: event.chat_room.id,
+            event_name: event.event_name || 'Unnamed Event',
+            start_date: event.start_date ? event.start_date.split('-').slice(1).join('/') : 'N/A',
+            end_date: event.end_date ? event.end_date.split('-').slice(1).join('/') : 'N/A',
+            start_time: event.start_time || null,
+            end_time: event.end_time || null,
+            total_members: totalMembers,
+            organizer_phone_number: event.organizer_phone_number || 'N/A',
+            accepted_members: acceptedMembers,
+            status: event.status || 'upcoming',
+          };
+          const endDate = new Date(event.end_date || '1970-01-01');
+          if (event.end_time || endDate < currentDate) completedEvents.push(eventDetails);
+          else upcomingEvents.push(eventDetails);
+        });
+
+        ws.send(JSON.stringify({
+          success: true,
+          message: 'Chat rooms fetched successfully',
+          data: { upcoming_events: upcomingEvents, completed_events: completedEvents },
+        }));
+      }
+
       // Fetch event details (updated to match /api/chat/event-details/:event_id)
       else if (type === 'get_event_details' && event_id && phone_number) {
         // Input validation
@@ -619,25 +653,44 @@ else if (type === 'fetch_chat_rooms' && phone_number) {
         }));
         return;
       }
+      
 
-      // Handle Send Message with room-specific broadcasting
-     // Inside wss.on('connection', ws.on('message', ...))
+//      // Handle Send Message with proper timestamp and sender name resolution
+// Handle Send Message with proper timestamp and sender name resolution
 else if (type === 'send_message' && room_id && phone_number && msg) {
+  // Add this at the top of your file (global tracking)
+  const messageTracking = new Map();
+
+  // Create a unique key for this message to track duplicates
+  const messageKey = `${room_id}_${phone_number}_${msg}_${Date.now()}`;
+  
+  console.log(`🔍 [MESSAGE_TRACKING] START - Key: ${messageKey}`);
+  console.log(`   Room: ${room_id}, Sender: ${phone_number}, Message: "${msg}"`);
+  
+  // Track this message
+  if (messageTracking.has(messageKey)) {
+    console.log(`❌❌❌ DUPLICATE DETECTED! Same message being processed again!`);
+    console.log(`   Previous timestamp: ${messageTracking.get(messageKey)}`);
+    console.log(`   Current timestamp: ${new Date().toISOString()}`);
+  } else {
+    messageTracking.set(messageKey, new Date().toISOString());
+  }
+
   const { data: chatRoom, error: roomError } = await supabase
     .from('chat_rooms')
     .select(`
       event_id,
       event_create!chat_rooms_event_id_fkey (
         organizer_phone_number,
-        accepted_members,
-        organizer_name,
-        gig_workers (name, phone_number)
+        accepted_members
       )
     `)
     .eq('id', room_id)
     .single();
 
   if (roomError || !chatRoom) {
+    console.log(`❌ Room not found - Removing track: ${messageKey}`);
+    messageTracking.delete(messageKey);
     ws.send(JSON.stringify({
       success: false,
       error: 'Chat room not found',
@@ -650,6 +703,8 @@ else if (type === 'send_message' && room_id && phone_number && msg) {
   const isAuthorized = event.organizer_phone_number === phone_number || acceptedMembers.includes(phone_number);
 
   if (!isAuthorized) {
+    console.log(`❌ Unauthorized - Removing track: ${messageKey}`);
+    messageTracking.delete(messageKey);
     ws.send(JSON.stringify({
       success: false,
       error: 'You are not authorized to send messages in this chat room',
@@ -657,13 +712,16 @@ else if (type === 'send_message' && room_id && phone_number && msg) {
     return;
   }
 
-  const { data, error } = await supabase
+  // Insert message
+  const { data: savedMessage, error: messageError } = await supabase
     .from('chat_messages')
     .insert([{ room_id, phone_number, message: msg }])
-    .select()
+    .select('id, room_id, phone_number, message, timestamp')
     .single();
 
-  if (error) {
+  if (messageError) {
+    console.log(`❌ DB Error - Removing track: ${messageKey}`);
+    messageTracking.delete(messageKey);
     ws.send(JSON.stringify({
       success: false,
       error: 'Failed to send message',
@@ -671,28 +729,75 @@ else if (type === 'send_message' && room_id && phone_number && msg) {
     return;
   }
 
-  // Map sender name
-  const organizerName = event.organizer_name || 'Unknown Organizer';
-  const gigWorkersMap = (event.gig_workers || []).reduce((map, worker) => {
-    map[worker.phone_number] = worker.name || 'Unknown Gig Worker';
-    return map;
-  }, {});
-  const senderName = phone_number === event.organizer_phone_number ? organizerName : (gigWorkersMap[phone_number] || 'Unknown');
+  console.log(`💾 Message saved with ID: ${savedMessage.id}`);
 
+  // Resolve sender name
+  let senderName = 'Unknown';
+  const { data: companyData } = await supabase
+    .from('company_registration')
+    .select('company_name')
+    .eq('phone_number', phone_number)
+    .maybeSingle();
+
+  if (companyData) {
+    senderName = companyData.company_name;
+  } else {
+    const { data: userData } = await supabase
+      .from('user1')
+      .select('first_name, last_name')
+      .eq('phone_number', phone_number)
+      .maybeSingle();
+
+    if (userData) {
+      senderName = `${userData.first_name || ''} ${userData.last_name || ''}`.trim();
+    }
+  }
+
+  // Broadcast to all clients
   const roomClients = rooms.get(room_id) || new Set();
+  const broadcastPayload = JSON.stringify({
+    type: 'new_message',
+    room_id,
+    phone_number,
+    sender_name: senderName,
+    message: msg,
+    timestamp: savedMessage.timestamp,
+  });
+
+  console.log(`📤 Broadcasting to ${roomClients.size} clients`);
+  
+  let broadcastCount = 0;
   roomClients.forEach((client) => {
     if (client.readyState === WebSocket.OPEN) {
-      client.send(JSON.stringify({
-        type: 'new_message',
-        room_id,
-        phone_number,
-        sender_name: senderName, // Add sender name
-        message: msg,
-        timestamp: data.timestamp,
-      }));
+      broadcastCount++;
+      console.log(`   → Client ${broadcastCount}: SENDING`);
+      client.send(broadcastPayload);
     }
   });
+
+  // Send confirmation to sender
+  const confirmationPayload = JSON.stringify({
+    success: true,
+    message: 'Message sent successfully',
+    data: {
+      ...savedMessage,
+      sender_name: senderName
+    }
+  });
+  
+  console.log(`📨 Sending confirmation to sender`);
+  ws.send(confirmationPayload);
+
+  console.log(`📊 FINAL COUNT: ${broadcastCount} broadcasts + 1 confirmation = ${broadcastCount + 1} total sends`);
+  console.log(`✅ [MESSAGE_TRACKING] END - Key: ${messageKey}\n`);
+  
+  // Clean up tracking after 10 seconds
+  setTimeout(() => {
+    messageTracking.delete(messageKey);
+  }, 10000);
 }
+
+
       // Handle unprocessed message types
       else {
         ws.send(JSON.stringify({
@@ -724,16 +829,20 @@ else if (type === 'send_message' && room_id && phone_number && msg) {
 
 
 
-// Middleware
+
+
+
 app.use(cors());
 app.use(express.json());
 app.use(helmet());
 app.use(compression());
 
 // Supabase setup
-const supabaseUrl = 'https://bulearmbgarmitcxkqfk.supabase.co';
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ1bGVhcm1iZ2FybWl0Y3hrcWZrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTkwMzI3NzcsImV4cCI6MjA3NDYwODc3N30.3wHmCJhzVrGXV63-u3eCSuNZsa2td0SUkh5lwfXG_a4';
+const supabaseUrl = 'https://qqfjpmhfdgftyvnguxmt.supabase.co';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFxZmpwbWhmZGdmdHl2bmd1eG10Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY3NTg5NjAsImV4cCI6MjA0MjMzNDk2MH0.r4SJj6jw-VmDbNl_k_Mol5myOv2yqopbf5zJnrF3Rkc';
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+
 // Add this function near the top of server.js, after the Supabase setup
 
 
@@ -752,7 +861,10 @@ app.post('/api/v1/company/register', async (req, res) => {
       ifsc_code,
       bank_name,
       gst_number,
-      company_profile, // Will accept Base64 data
+      company_profile, 
+      company_type,
+      pan,
+      cin
     } = req.body;
 
     // Check if all required fields are provided
@@ -794,6 +906,9 @@ app.post('/api/v1/company/register', async (req, res) => {
           ...(bank_name && { bank_name }),           // Include only if provided
           ...(gst_number && { gst_number }),         // Include only if provided
           company_profile: companyProfileUrl,        // Store the URL or null if no upload
+          ...(company_type && { company_type }),     // Include only if provided
+          ...(pan && { pan }),                       // Include only if provided
+          ...(cin && { cin })                        // Include only if provided
         }
       ])
       .select('*'); // To return the inserted row
@@ -1178,14 +1293,15 @@ app.post('/api/v1/user/register-phone', async (req, res) => {
   }
 });
 
+
 app.delete("/api/delete-event/:eventId", async (req, res) => {
   try {
     const { eventId } = req.params;
 
-    // 1. Get event details
+    // 1️⃣ Get event details
     const { data: event, error: eventError } = await supabase
       .from("event_create")
-      .select("id, start_date, accepted_members")
+      .select("id, start_date, end_date, start_time, end_time, accepted_members")
       .eq("id", eventId)
       .single();
 
@@ -1196,19 +1312,26 @@ app.delete("/api/delete-event/:eventId", async (req, res) => {
       });
     }
 
-    // 2. Check if event is at least 3 days away
-    const today = new Date();
-    const startDate = new Date(event.start_date);
-    const diffDays = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
-
-    if (diffDays < 3) {
+    // 2️⃣ Check if the event ended more than 48 hours ago
+    if (!event.end_date || !event.end_time) {
       return res.status(400).json({
         success: false,
-        error: "Events within 3 days cannot be deleted",
+        error: "Event end date or time missing",
       });
     }
 
-    // 3. Get related applications (to delete uploads)
+    const now = new Date();
+    const eventEndDateTime = new Date(`${event.end_date}T${event.end_time}`);
+    const diffHours = (now - eventEndDateTime) / (1000 * 60 * 60);
+
+    if (diffHours < 48) {
+      return res.status(400).json({
+        success: false,
+        error: "Event can only be deleted 48 hours after it has ended",
+      });
+    }
+
+    // 3️⃣ Get related applications (to delete uploads)
     const { data: applications, error: appError } = await supabase
       .from("event_applications")
       .select("id, uploads")
@@ -1218,7 +1341,7 @@ app.delete("/api/delete-event/:eventId", async (req, res) => {
       console.error("Fetch applications error:", appError);
     }
 
-    // 4. Delete images from storage
+    // 4️⃣ Delete images from storage
     if (applications && applications.length > 0) {
       for (const app of applications) {
         if (app.uploads && Array.isArray(app.uploads)) {
@@ -1235,10 +1358,10 @@ app.delete("/api/delete-event/:eventId", async (req, res) => {
       }
     }
 
-    // 5. Delete applications
+    // 5️⃣ Delete applications
     await supabase.from("event_applications").delete().eq("event_id", eventId);
 
-    // 6. Delete event itself
+    // 6️⃣ Delete event itself
     const { error: deleteError } = await supabase
       .from("event_create")
       .delete()
@@ -1254,7 +1377,80 @@ app.delete("/api/delete-event/:eventId", async (req, res) => {
 
     res.status(200).json({
       success: true,
-      message: "Event and related data deleted successfully",
+      message: "Event and related data deleted successfully (after 48 hours of completion)",
+    });
+  } catch (err) {
+    console.error("Server Error:", err);
+    res.status(500).json({
+      success: false,
+      error: "Server error",
+      details: err.message,
+    });
+  }
+});
+
+
+// to delete chat_rooms  and chat_messages
+
+app.delete("/api/delete-chat-data/:eventId", async (req, res) => {
+  try {
+    const { eventId } = req.params;
+
+    // 1️⃣ Verify event exists
+    const { data: event, error: eventError } = await supabase
+      .from("event_create")
+      .select("id")
+      .eq("id", eventId)
+      .single();
+
+    if (eventError || !event) {
+      return res.status(404).json({
+        success: false,
+        error: "Event not found",
+      });
+    }
+
+    // 2️⃣ Get all related chat rooms for this event
+    const { data: chatRooms, error: chatRoomsError } = await supabase
+      .from("chat_rooms")
+      .select("id")
+      .eq("event_id", eventId);
+
+    if (chatRoomsError) {
+      console.error("Error fetching chat rooms:", chatRoomsError.message);
+      return res.status(500).json({
+        success: false,
+        error: "Failed to fetch chat rooms",
+      });
+    }
+
+    // 3️⃣ If chat rooms exist, delete all messages linked to them
+    if (chatRooms && chatRooms.length > 0) {
+      const roomIds = chatRooms.map(room => room.id);
+
+      const { error: deleteMessagesError } = await supabase
+        .from("chat_messages")
+        .delete()
+        .in("room_id", roomIds);
+
+      if (deleteMessagesError) {
+        console.error("Error deleting chat messages:", deleteMessagesError.message);
+      }
+
+      // 4️⃣ Delete chat rooms themselves
+      const { error: deleteRoomsError } = await supabase
+        .from("chat_rooms")
+        .delete()
+        .in("id", roomIds);
+
+      if (deleteRoomsError) {
+        console.error("Error deleting chat rooms:", deleteRoomsError.message);
+      }
+    }
+
+    res.status(200).json({
+      success: true,
+      message: "Chat rooms and messages deleted successfully for the event",
     });
   } catch (err) {
     console.error("Server Error:", err);
@@ -1637,7 +1833,7 @@ app.get('/api/v1/company/profile', async (req, res) => {
     // Fetch company profile from Supabase with additional columns
     const query = supabase
       .from('company_registration')
-      .select('company_name, company_address, contact_person_name, phone_number, email_id, account_number, ifsc_code, bank_name, gst_number, company_profile, average_rating');
+      .select('company_name, company_address, contact_person_name, phone_number, email_id, account_number, ifsc_code, bank_name, gst_number, company_profile, average_rating, company_type, pan, cin');
 
     const { data, error } = trimmedPhoneNumber
       ? await query.eq('phone_number', trimmedPhoneNumber)
@@ -1675,6 +1871,9 @@ app.get('/api/v1/company/profile', async (req, res) => {
         gst_number: data[0].gst_number || '',
         company_profile: data[0].company_profile || null,
         average_rating: data[0].average_rating || null,
+        company_type: data[0].company_type || null,
+        pan: data[0].pan || null,
+        cin: data[0].cin || null,
       },
     });
   } catch (error) {
@@ -1686,6 +1885,46 @@ app.get('/api/v1/company/profile', async (req, res) => {
     });
   }
 });
+app.get('/api/v1/company/all', async (req, res) => {
+  try {
+    // Fetch all company records
+    const { data, error } = await supabase
+      .from('company_registration')
+      .select('*'); // Fetch all columns
+
+    if (error) {
+      console.error('Supabase Query Error:', error.message);
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+        details: error.message,
+      });
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No company records found',
+      });
+    }
+
+    // Send all company data
+    res.status(200).json({
+      success: true,
+      message: 'All company records fetched successfully',
+      count: data.length,
+      data,
+    });
+  } catch (error) {
+    console.error('Error fetching all company records:', error.message, error.stack);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message,
+    });
+  }
+});
+
 
 app.put('/api/v1/company/profile', async (req, res) => {
   try {
@@ -2244,6 +2483,115 @@ app.get('/api/events/organizer/:phone_number/completed', async (req, res) => {
 });
 
 
+// app.get('/api/events/:event_id/accepted-members/rating', async (req, res) => {
+//   const requestStart = Date.now();
+//   const { event_id } = req.params;
+
+//   try {
+//     // 1. Input Validation
+//     if (!event_id) {
+//       return res.status(400).json({
+//         success: false,
+//         error: 'Event ID is required',
+//         code: 'INVALID_EVENT_ID'
+//       });
+//     }
+
+//     // 2. Fetch event details to get accepted_members
+//     const { data: event, error: eventError } = await supabase
+//       .from('event_create')
+//       .select('accepted_members')
+//       .eq('id', event_id)
+//       .single();
+
+//     if (eventError) {
+//       console.error('Event Fetch Error:', eventError);
+//       return res.status(500).json({
+//         success: false,
+//         error: 'Failed to fetch event details',
+//         code: 'DATABASE_ERROR',
+//         details: eventError.message
+//       });
+//     }
+
+//     if (!event) {
+//       return res.status(404).json({
+//         success: false,
+//         error: 'Event not found',
+//         code: 'EVENT_NOT_FOUND'
+//       });
+//     }
+
+//     // 3. Parse accepted_members
+//     let acceptedMembersIds = safeParseJson(event.accepted_members) || [];
+//     if (!Array.isArray(acceptedMembersIds)) {
+//       acceptedMembersIds = acceptedMembersIds ? [acceptedMembersIds] : [];
+//     }
+
+//     if (acceptedMembersIds.length === 0) {
+//       return res.status(200).json({
+//         success: true,
+//         message: 'No accepted members for this event',
+//         data: {
+//           total_accepted: 0,
+//           male_count: 0,
+//           female_count: 0,
+//           male_members: [],
+//           female_members: []
+//         },
+//         processing_time: `${Date.now() - requestStart}ms`
+//       });
+//     }
+
+//     // 4. Fetch accepted members details including gender, average_rating, and rating_count
+//     const { data: members, error: membersError } = await supabase
+//       .from('user1')
+//       .select('id, phone_number, first_name, last_name, gender, average_rating, rating_count') // Added average_rating and rating_count
+//       .in('phone_number', acceptedMembersIds);
+
+//     if (membersError) {
+//       console.error('Members Fetch Error:', membersError);
+//       return res.status(500).json({
+//         success: false,
+//         error: 'Failed to fetch accepted members details',
+//         code: 'DATABASE_ERROR',
+//         details: membersError.message
+//       });
+//     }
+
+//     // 5. Separate members by gender and count
+//     const maleMembers = members.filter(member => 
+//       member.gender === 'male' || member.gender === 'Male' || member.gender === 'M'
+//     );
+//     const femaleMembers = members.filter(member => 
+//       member.gender === 'female' || member.gender === 'Female' || member.gender === 'F'
+//     );
+
+//     // 6. Success Response
+//     res.status(200).json({
+//       success: true,
+//       message: 'Accepted members fetched successfully',
+//       data: {
+//         total_accepted: members.length,
+//         male_count: maleMembers.length,
+//         female_count: femaleMembers.length,
+//         male_members: maleMembers,
+//         female_members: femaleMembers
+//       },
+//       processing_time: `${Date.now() - requestStart}ms`
+//     });
+
+//   } catch (error) {
+//     console.error('Server Error:', error);
+//     res.status(500).json({
+//       success: false,
+//       error: 'Internal server error',
+//       code: 'SERVER_ERROR',
+//       details: error.message
+//     });
+//   }
+// });
+
 app.get('/api/events/:event_id/accepted-members/rating', async (req, res) => {
   const requestStart = Date.now();
   const { event_id } = req.params;
@@ -2304,10 +2652,10 @@ app.get('/api/events/:event_id/accepted-members/rating', async (req, res) => {
       });
     }
 
-    // 4. Fetch accepted members details including gender, average_rating, and rating_count
+    // 4. Fetch accepted members details including profile_pic
     const { data: members, error: membersError } = await supabase
       .from('user1')
-      .select('id, phone_number, first_name, last_name, gender, average_rating, rating_count') // Added average_rating and rating_count
+      .select('id, phone_number, first_name, last_name, gender, average_rating, rating_count, profile_pic') // ✅ Added profile_pic
       .in('phone_number', acceptedMembersIds);
 
     if (membersError) {
@@ -2352,6 +2700,7 @@ app.get('/api/events/:event_id/accepted-members/rating', async (req, res) => {
     });
   }
 });
+
 
 function safeParseJson(jsonString) {
   try {
@@ -2542,86 +2891,7 @@ app.get('/api/user/completed-events/:phone_number', async (req, res) => {
 });
 
 
-// Endpoint: Register phone number
-app.post('/api/v1/company/register', async (req, res) => {
-  try {
-    const {
-      company_name,
-      company_address,
-      contact_person_name,
-      phone_number,
-      email_id,
-      account_number,
-      ifsc_code,
-      bank_name,
-      gst_number,
-      company_profile, // Will accept Base64 data
-    } = req.body;
 
-    // Check if all required fields are provided
-    if (!company_name || !company_address || !contact_person_name || !phone_number || !email_id || !account_number || !ifsc_code || !bank_name || !gst_number) {
-      return res.status(400).json({
-        success: false,
-        error: 'All fields except company_profile are required.',
-      });
-    }
-
-    // Handle company_profile upload if provided as Base64
-    let companyProfileUrl = company_profile;
-    if (company_profile && company_profile.startsWith('data:image')) {
-      companyProfileUrl = await uploadBase64ToSupabase(
-        company_profile,
-        'company_profiles', // Bucket name for company profiles
-        `profile_${phone_number}_${Date.now()}.jpg` // Unique filename
-      );
-      if (!companyProfileUrl) {
-        return res.status(500).json({
-          success: false,
-          error: 'Failed to upload company profile image',
-        });
-      }
-    }
-
-    // Insert data into Supabase
-    const { data, error } = await supabase
-      .from('company_registration')
-      .insert([
-        {
-          company_name,
-          company_address,
-          contact_person_name,
-          phone_number,
-          email_id,
-          account_number,
-          ifsc_code,
-          bank_name,
-          gst_number,
-          company_profile: companyProfileUrl, // Store the URL or null if no upload
-        }
-      ])
-      .select('*'); // To return the inserted row
-
-    if (error) {
-      console.error('Supabase Insert Error:', error.message);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to register company',
-      });
-    }
-
-    res.status(201).json({
-      success: true,
-      message: 'Company registered successfully',
-      company: data[0],
-    });
-  } catch (error) {
-    console.error('Error registering company:', error.message);
-    res.status(500).json({
-      success: false,
-      error: 'Server error occurred',
-    });
-  }
-});
 
 
 
@@ -2877,66 +3147,66 @@ app.get('/api/v1/user/organizer/details', async (req, res) => {
       });
     }
   });
-//  app.put('/api/v1/user/:phone_number/update-details', async (req, res) => {
-//     try {
-//       const { phone_number } = req.params;
-//       const { profile_pic, aadhar_file, ...otherData } = req.body;
+ app.put('/api/v1/user/:phone_number/update-details', async (req, res) => {
+    try {
+      const { phone_number } = req.params;
+      const { profile_pic, aadhar_file, ...otherData } = req.body;
   
-//       // Validate input
-//       if (!phone_number) {
-//         return res.status(400).json({
-//           success: false,
-//           error: "Phone number is required"
-//         });
-//       }
+      // Validate input
+      if (!phone_number) {
+        return res.status(400).json({
+          success: false,
+          error: "Phone number is required"
+        });
+      }
   
-//       // Process profile_pic (accepts URL or Base64)
-//       let profilePicUrl = profile_pic;
-//       if (profile_pic && profile_pic.startsWith('data:image')) {
-//         profilePicUrl = await uploadBase64ToSupabase(
-//           profile_pic, 
-//           'profile_pics',
-//           `profile_${phone_number}_${Date.now()}.jpg`
-//         );
-//       }
+      // Process profile_pic (accepts URL or Base64)
+      let profilePicUrl = profile_pic;
+      if (profile_pic && profile_pic.startsWith('data:image')) {
+        profilePicUrl = await uploadBase64ToSupabase(
+          profile_pic, 
+          'profile_pics',
+          `profile_${phone_number}_${Date.now()}.jpg`
+        );
+      }
   
-//       // Process aadhar_file (accepts URL or Base64)
-//       let aadharFileUrl = aadhar_file;
-//       if (aadhar_file && aadhar_file.startsWith('data:application')) {
-//         aadharFileUrl = await uploadBase64ToSupabase(
-//           aadhar_file,
-//           'aadhar_files',
-//           `aadhar_${phone_number}_${Date.now()}.pdf`
-//         );
-//       }
+      // Process aadhar_file (accepts URL or Base64)
+      let aadharFileUrl = aadhar_file;
+      if (aadhar_file && aadhar_file.startsWith('data:application')) {
+        aadharFileUrl = await uploadBase64ToSupabase(
+          aadhar_file,
+          'aadhar_files',
+          `aadhar_${phone_number}_${Date.now()}.pdf`
+        );
+      }
   
-//       // Update user in Supabase
-//       const { data, error } = await supabase
-//         .from('user1')
-//         .update({
-//           ...otherData,
-//           ...(profilePicUrl && { profile_pic: profilePicUrl }),
-//           ...(aadharFileUrl && { aadhar_file: aadharFileUrl })
-//         })
-//         .eq('phone_number', phone_number)
-//         .select();
+      // Update user in Supabase
+      const { data, error } = await supabase
+        .from('user1')
+        .update({
+          ...otherData,
+          ...(profilePicUrl && { profile_pic: profilePicUrl }),
+          ...(aadharFileUrl && { aadhar_file: aadharFileUrl })
+        })
+        .eq('phone_number', phone_number)
+        .select();
   
-//       if (error) throw error;
+      if (error) throw error;
   
-//       res.status(200).json({
-//         success: true,
-//         message: "User details updated successfully",
-//         data: data[0]
-//       });
+      res.status(200).json({
+        success: true,
+        message: "User details updated successfully",
+        data: data[0]
+      });
   
-//     } catch (error) {
-//       console.error("Update error:", error.message);
-//       res.status(500).json({
-//         success: false,
-//         error: error.message || "Update failed"
-//       });
-//     }
-//   });
+    } catch (error) {
+      console.error("Update error:", error.message);
+      res.status(500).json({
+        success: false,
+        error: error.message || "Update failed"
+      });
+    }
+  });
 
 app.get('/api/user/applied-events/:phone_number/:event_id', async (req, res) => {
   try {
@@ -3814,6 +4084,47 @@ app.get('/api/events/:event_id/applied-members', async (req, res) => {
   }
 });
 
+app.get('/api/v1/events/started', async (req, res) => {
+  try {
+    // Fetch all events where status = 'started'
+    const { data, error } = await supabase
+      .from('event_create')
+      .select('*')
+      .eq('status', 'started');
+
+    if (error) {
+      console.error('Supabase Query Error:', error.message);
+      return res.status(500).json({
+        success: false,
+        error: 'Internal server error',
+        details: error.message,
+      });
+    }
+
+    if (!data || data.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'No started events found',
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Started events fetched successfully',
+      count: data.length,
+      data,
+    });
+  } catch (error) {
+    console.error('Error fetching started events:', error.message, error.stack);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message,
+    });
+  }
+});
+
+
 //admin panel
 
 app.get('/api/ongoing-events-accepted-members-details', async (req, res) => {
@@ -4208,6 +4519,52 @@ app.get('/api/gigworkers/all-stats', async (req, res) => {
     });
   }
 });
+
+app.get('/api/gigworkers/all', async (req, res) => {
+  try {
+    console.log('Fetching all gig workers with firstname...');
+
+    // Fetch all users who have a firstname
+    const { data: users, error } = await supabase
+      .from('user1')
+      .select('*')
+      .not('first_name', 'is', null) // firstname is not null
+      .neq('first_name', ''); // firstname is not empty
+
+    if (error) {
+      console.error('Error fetching gig workers:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch gig workers',
+        code: 'DATABASE_ERROR',
+        details: error.message,
+      });
+    }
+
+    if (!users || users.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'No gig workers found with firstname',
+        workers: [],
+      });
+    }
+
+    res.status(200).json({
+      success: true,
+      message: 'Gig workers retrieved successfully',
+      workers: users,
+    });
+  } catch (error) {
+    console.error('Unexpected Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      code: 'INTERNAL_ERROR',
+      details: error.message,
+    });
+  }
+});
+
 
 
 app.get('/api/gigworker/:phone_number', async (req, res) => {
@@ -4851,19 +5208,11 @@ app.post('/api/create-event', async (req, res) => {
       transportProvided = false,
       maleCrewPay = 0,
       femaleCrewPay = 0,
-      maleCrew = 0, // Added male_crew
-      femaleCrew = 0, // Added female_crew
+      maleCrew = 0,
+      femaleCrew = 0,
       additionalDetails = null,
       organizerPhone,
     } = req.body;
-
-    // Log incoming values for debugging
-    console.log('Received values:', {
-      maleCrewPay,
-      femaleCrewPay,
-      maleCrew,
-      femaleCrew,
-    });
 
     // Validate required fields
     if (!eventName || !startDate || !endDate || !startTime || !endTime || !location || !jobTitle || !organizerPhone) {
@@ -4873,69 +5222,83 @@ app.post('/api/create-event', async (req, res) => {
       });
     }
 
-    // Validate pay values
+    // Fetch company by phone number
+    const { data: companyData, error: companyError } = await supabase
+      .from('company_registration')
+      .select('first_event')
+      .eq('phone_number', organizerPhone)
+      .single();
+
+    if (companyError) {
+      console.error('Error fetching company data:', companyError.message);
+      return res.status(500).json({
+        success: false,
+        error: 'Error fetching company details',
+        details: companyError.message,
+      });
+    }
+
+    const isFirstEvent = companyData?.first_event ?? true;
+
+    // Convert numeric fields
     const malePay = Number(maleCrewPay);
     const femalePay = Number(femaleCrewPay);
-    if (isNaN(malePay) || isNaN(femalePay) || malePay < 0 || femalePay < 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid pay values. maleCrewPay and femaleCrewPay must be non-negative numbers.',
-      });
-    }
-
-    // Validate crew counts
     const maleCrewCount = Number(maleCrew);
     const femaleCrewCount = Number(femaleCrew);
-    if (isNaN(maleCrewCount) || isNaN(femaleCrewCount) || maleCrewCount < 0 || femaleCrewCount < 0 || !Number.isInteger(maleCrewCount) || !Number.isInteger(femaleCrewCount)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid crew values. maleCrew and femaleCrew must be non-negative integers.',
-      });
+
+    // Validate crew/pay
+    if (isNaN(malePay) || isNaN(femalePay) || malePay < 0 || femalePay < 0) {
+      return res.status(400).json({ success: false, error: 'Invalid pay values' });
+    }
+    if (
+      isNaN(maleCrewCount) || isNaN(femaleCrewCount) ||
+      maleCrewCount < 0 || femaleCrewCount < 0 ||
+      !Number.isInteger(maleCrewCount) || !Number.isInteger(femaleCrewCount)
+    ) {
+      return res.status(400).json({ success: false, error: 'Invalid crew values' });
     }
 
-    // Log converted values
-    console.log('Converted values:', {
-      malePay,
-      femalePay,
-      maleCrewCount,
-      femaleCrewCount,
-    });
+    // =========================================================================
+    // ⭐ DAYS CALCULATION (UPDATED)
+    // =========================================================================
 
-    // Validate date format
-    if (isNaN(Date.parse(startDate)) || isNaN(Date.parse(endDate))) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid date format. Use YYYY-MM-DD.',
-      });
+    const startDateTime = new Date(`${startDate}T${startTime}`);
+    const endDateTime = new Date(`${endDate}T${endTime}`);
+
+    let daysDiff = 1;
+
+    if (startDate === endDate) {
+      // Same-day event → calculate by hours
+      const hoursDiff = Math.max(
+        1,
+        Math.ceil((endDateTime - startDateTime) / (1000 * 60 * 60))
+      );
+
+      // 8 hours = 1 day → you can modify ratio
+      daysDiff = hoursDiff / 8;
+
+    } else {
+      // Multi-day → inclusive counting
+      const start = new Date(startDate);
+      const end = new Date(endDate);
+
+      const rawDays =
+        Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+      daysDiff = Math.max(1, rawDays);
     }
 
-    // Validate time format (HH:MM)
-    const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
-    if (!timeRegex.test(startTime) || !timeRegex.test(endTime)) {
-      return res.status(400).json({
-        success: false,
-        error: 'Invalid time format. Use HH:MM (24-hour format).',
-      });
-    }
+    // =========================================================================
+    // ⭐ TOTAL PAY CALCULATION
+    // =========================================================================
 
-    // Calculate number of days
-    const start = new Date(startDate);
-    const end = new Date(endDate);
-    const timeDiff = end - start;
-    const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24)); // Convert milliseconds to days and round up
-    if (daysDiff < 0) {
-      return res.status(400).json({
-        success: false,
-        error: 'endDate must be on or after startDate.',
-      });
-    }
+    const basePay = malePay * maleCrewCount + femalePay * femaleCrewCount;
+    const commissionRate = isFirstEvent ? 1.0 : 1.13;
+    const totalPay = basePay * commissionRate * daysDiff;
 
-    // Calculate total pay
-    const basePay = (malePay * maleCrewCount) + (femalePay * femaleCrewCount);
-    const withTax = basePay * 1.13; // Add 13% (1.13 = 100% + 13%)
-    const totalPay = withTax * daysDiff;
+    // =========================================================================
 
-    // Prepare data for insertion
+    // Insert event
     const insertData = {
       event_name: eventName,
       poster_file: poster,
@@ -4958,70 +5321,51 @@ app.post('/api/create-event', async (req, res) => {
       organizer_phone_number: organizerPhone,
     };
 
-    // Log data to be inserted
-    console.log('Inserting data:', insertData);
-
-    // Insert into Supabase
     const { data, error } = await supabase
       .from('event_create')
       .insert([insertData])
       .select('*');
 
-    // Check for Supabase errors
     if (error) {
       console.error('Supabase Insert Error:', error);
       return res.status(500).json({
         success: false,
-        error: 'Failed to create event. Supabase error.',
+        error: 'Failed to create event',
         details: error.message,
       });
     }
 
-    // Verify inserted data
-    console.log('Inserted event:', data[0]);
+    // Update first_event if needed
+    if (isFirstEvent) {
+      const { error: updateError } = await supabase
+        .from('company_registration')
+        .update({ first_event: false })
+        .eq('phone_number', organizerPhone);
 
-    // Check if pay and crew values were stored correctly
-    if (
-      data[0].male_crew_pay !== malePay ||
-      data[0].female_crew_pay !== femalePay ||
-      data[0].male_crew !== maleCrewCount ||
-      data[0].female_crew !== femaleCrewCount
-    ) {
-      console.error('Value mismatch:', {
-        expected: { malePay, femalePay, maleCrewCount, femaleCrewCount },
-        got: {
-          male_crew_pay: data[0].male_crew_pay,
-          female_crew_pay: data[0].female_crew_pay,
-          male_crew: data[0].male_crew,
-          female_crew: data[0].female_crew,
-        },
-      });
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to store pay or crew values correctly.',
-      });
+      if (updateError) {
+        console.error('Error updating company first_event:', updateError.message);
+      }
     }
 
-    // Success Response
     res.status(201).json({
       success: true,
-      message: 'Event created successfully!',
+      message: isFirstEvent
+        ? 'Event created successfully! (No commission for first event)'
+        : 'Event created successfully! (13% commission applied)',
       event: data[0],
     });
 
   } catch (err) {
-    console.error('Server Error:', {
-      message: err.message,
-      stack: err.stack,
-      timestamp: new Date().toISOString(),
-    });
+    console.error('Server Error:', err.message, err.stack);
     res.status(500).json({
       success: false,
-      error: 'Server error occurred.',
-      details: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error',
+      error: 'Internal server error',
+      details: err.message,
     });
   }
 });
+
+
 
 app.get('/api/events', async (req, res) => {
   try {
@@ -5064,8 +5408,19 @@ app.get('/api/events', async (req, res) => {
       });
     }
 
+    // 🔹 Filter out events that ended more than 48 hours ago
+    const now = new Date();
+    const filteredEvents = events.filter(event => {
+      if (!event.end_date || !event.end_time) return true; // keep if missing date/time
+
+      const eventEnd = new Date(`${event.end_date}T${event.end_time}`);
+      const hoursPassed = (now - eventEnd) / (1000 * 60 * 60);
+
+      return hoursPassed < 48; // keep only if within 48 hours after event end
+    });
+
     // 2. Fetch all organizers in one query (avoid N+1 problem)
-    const uniquePhoneNumbers = [...new Set(events.map(e => e.organizer_phone_number))];
+    const uniquePhoneNumbers = [...new Set(filteredEvents.map(e => e.organizer_phone_number))];
 
     const { data: organizers, error: orgError } = await supabase
       .from('company_registration')
@@ -5089,7 +5444,7 @@ app.get('/api/events', async (req, res) => {
     }
 
     // 3. Enrich events with organizer info & slots left
-    const enrichedEvents = events.map(event => {
+    const enrichedEvents = filteredEvents.map(event => {
       // Total crew slots
       const totalCrewSlots = (event.male_crew || 0) + (event.female_crew || 0);
 
@@ -5127,6 +5482,7 @@ app.get('/api/events', async (req, res) => {
     });
   }
 });
+
 
 
 
@@ -5308,6 +5664,93 @@ app.post('/api/v2/events/save', async (req, res) => {
   }
 });
 
+app.post('/api/v2/events/unsave', async (req, res) => {
+  console.log('Received body for unsave:', req.body);
+  const { phone_number, event_id } = req.body;
+
+  // 1️⃣ Validate inputs
+  if (!phone_number || !event_id) {
+    return res.status(400).json({ success: false, error: 'Missing phone_number or event_id' });
+  }
+
+  // 2️⃣ Validate UUID format for event_id
+  const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
+  if (!uuidRegex.test(event_id)) {
+    return res.status(400).json({ success: false, error: 'event_id must be a valid UUID' });
+  }
+
+  // 3️⃣ Normalize and validate phone number
+  let cleanPhone = phone_number.trim();
+  const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+  if (!phoneRegex.test(cleanPhone)) {
+    return res.status(400).json({ success: false, error: 'Invalid phone_number format' });
+  }
+  if (!cleanPhone.startsWith('+')) {
+    cleanPhone = `+${cleanPhone}`;
+  }
+
+  try {
+    console.log(`Unsave request for event ID: ${event_id}`);
+
+    // 4️⃣ Fetch current event's saved list
+    const { data: currentEvent, error: fetchError } = await supabase
+      .from('event_create')
+      .select('saved')
+      .eq('id', event_id)
+      .single();
+
+    if (fetchError) {
+      console.error('Supabase fetch error (unsave):', fetchError);
+      return res.status(500).json({ success: false, error: 'Database fetch error' });
+    }
+
+    if (!currentEvent) {
+      return res.status(404).json({ success: false, error: 'Event not found' });
+    }
+
+    // 5️⃣ Remove phone number from saved list
+    let updatedSaved = [];
+    if (Array.isArray(currentEvent.saved)) {
+      updatedSaved = currentEvent.saved.filter(num => num !== cleanPhone);
+    }
+
+    // 6️⃣ Update the event in Supabase
+    const { data: updatedEvent, error: updateError } = await supabase
+      .from('event_create')
+      .update({ saved: updatedSaved })
+      .eq('id', event_id)
+      .select('*')
+      .single();
+
+    if (updateError) {
+      console.error('Supabase update error (unsave):', updateError);
+      return res.status(500).json({ success: false, error: 'Database update error' });
+    }
+
+    // 7️⃣ Success response
+    res.status(200).json({
+      success: true,
+      message: 'Event unsaved successfully',
+      data: updatedEvent
+    });
+
+  } catch (error) {
+    console.error('Unsave error:', {
+      message: error.message,
+      stack: error.stack,
+      phone: cleanPhone,
+      event_id,
+      timestamp: new Date().toISOString()
+    });
+
+    res.status(500).json({
+      success: false,
+      error: 'Failed to unsave event',
+      details: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+    });
+  }
+});
+
 
 app.get('/api/v2/events/saved', async (req, res) => {
   const { phone_number } = req.query;
@@ -5408,6 +5851,550 @@ app.get('/api/v2/events/saved', async (req, res) => {
   }
 });
 
+
+// wallet 
+
+// organizer wallet
+// Organizer Wallet API
+app.get('/api/organizer/wallet', async (req, res) => {
+  try {
+    const { organizer_phone_number } = req.query;
+
+    if (!organizer_phone_number) {
+      return res.status(400).json({
+        success: false,
+        error: 'Organizer phone number is required'
+      });
+    }
+
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(organizer_phone_number)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid phone number format'
+      });
+    }
+
+    console.log(`Fetching wallet data for organizer: ${organizer_phone_number}`);
+
+    const { data: events, error: eventsError } = await supabase
+      .from('event_create')
+      .select(`
+        id,
+        event_name,
+        total_pay,
+        accepted_members,
+        created_at
+      `)
+      .eq('organizer_phone_number', organizer_phone_number)
+      .order('created_at', { ascending: false });
+
+    if (eventsError) {
+      console.error('Supabase Events Fetch Error:', eventsError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch organizer events'
+      });
+    }
+
+    if (!events || events.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'No events found for this organizer',
+        data: []
+      });
+    }
+
+    console.log(`Found ${events.length} events for organizer`);
+
+    const walletData = await Promise.all(
+      events.map(async (event) => {
+        let acceptedMembers = [];
+        try {
+          acceptedMembers = typeof event.accepted_members === 'string' 
+            ? JSON.parse(event.accepted_members) 
+            : event.accepted_members || [];
+        } catch (error) {
+          console.error(`Error parsing accepted_members for event ${event.id}:`, error);
+          acceptedMembers = [];
+        }
+
+        console.log(`Event ${event.id} has ${acceptedMembers.length} accepted members:`, acceptedMembers);
+
+        const { data: payment, error: paymentError } = await supabase
+          .from('payments')
+          .select('payment_status, payment_id, created_at')
+          .eq('event_id', event.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .single();
+
+        const paymentStatus = payment?.payment_status || 'pending';
+        const paymentId = payment?.payment_id || null;
+
+        let gigWorkers = [];
+        if (acceptedMembers.length > 0) {
+          const { data: workers, error: workersError } = await supabase
+            .from('user1')
+            .select('phone_number, first_name, last_name, profile_pic')
+            .in('phone_number', acceptedMembers);
+
+          if (workersError) {
+            console.error(`Error fetching workers for event ${event.id}:`, workersError);
+          } else if (workers) {
+            gigWorkers = workers.map(worker => ({
+              phone_number: worker.phone_number,
+              first_name: worker.first_name || '',
+              last_name: worker.last_name || '',
+              profile_pic: worker.profile_pic || null,
+              full_name: `${worker.first_name || ''} ${worker.last_name || ''}`.trim()
+            }));
+            
+            console.log(`Fetched ${gigWorkers.length} gig workers for event ${event.id}`);
+          }
+        } else {
+          console.log(`No accepted members found for event ${event.id}`);
+        }
+
+        // Check if chat room exists for this event
+        const { data: chatRoom, error: chatError } = await supabase
+          .from('chat_rooms')
+          .select('id')
+          .eq('event_id', event.id)
+          .single();
+
+        const hasChatAccess = chatRoom !== null;
+
+        return {
+          event_id: event.id,
+          event_name: event.event_name || 'Unnamed Event',
+          gig_workers: {
+            count: acceptedMembers.length,
+            details: gigWorkers
+          },
+          total_pay: event.total_pay || 0,
+          payment_status: paymentStatus,
+          payment_id: paymentId,
+          requires_payment: paymentStatus === 'pending',
+          has_chat_access: hasChatAccess,
+          event_created_at: event.created_at
+        };
+      })
+    );
+
+    const summary = {
+      total_events: walletData.length,
+      total_pending_payments: walletData.filter(item => item.payment_status === 'pending').length,
+      total_completed_payments: walletData.filter(item => item.payment_status === 'completed').length,
+      total_amount_pending: walletData
+        .filter(item => item.payment_status === 'pending')
+        .reduce((sum, item) => sum + (item.total_pay || 0), 0),
+      total_amount_paid: walletData
+        .filter(item => item.payment_status === 'completed')
+        .reduce((sum, item) => sum + (item.total_pay || 0), 0),
+      total_accepted_gig_workers: walletData.reduce((sum, item) => sum + item.gig_workers.count, 0)
+    };
+
+    res.status(200).json({
+      success: true,
+      message: 'Wallet data fetched successfully',
+      data: {
+        organizer_phone_number,
+        summary,
+        events: walletData
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching organizer wallet:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+// Gig Worker Wallet API 
+app.get('/api/gig-worker/wallet', async (req, res) => {
+  try {
+    const { phone_number } = req.query;
+
+    if (!phone_number) {
+      return res.status(400).json({
+        success: false,
+        error: 'Gig worker phone number is required'
+      });
+    }
+
+    const phoneRegex = /^\+?[1-9]\d{1,14}$/;
+    if (!phoneRegex.test(phone_number)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid phone number format'
+      });
+    }
+
+    console.log(`Fetching wallet data for gig worker: ${phone_number}`);
+
+    const { data: gigWorker, error: workerError } = await supabase
+      .from('user1')
+      .select('phone_number, first_name, last_name')
+      .eq('phone_number', phone_number)
+      .single();
+
+    if (workerError || !gigWorker) {
+      return res.status(404).json({
+        success: false,
+        error: 'Gig worker not found'
+      });
+    }
+
+    const { data: events, error: eventsError } = await supabase
+      .from('event_create')
+      .select(`
+        id,
+        event_name,
+        total_pay,
+        organizer_phone_number,
+        accepted_members,
+        start_date,
+        end_date,
+        location,
+        created_at
+      `)
+      .contains('accepted_members', [phone_number])
+      .order('created_at', { ascending: false });
+
+    if (eventsError) {
+      console.error('Supabase Events Fetch Error:', eventsError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to fetch events for gig worker'
+      });
+    }
+
+    if (!events || events.length === 0) {
+      return res.status(200).json({
+        success: true,
+        message: 'No accepted events found for this gig worker',
+        data: []
+      });
+    }
+
+    console.log(`Found ${events.length} events where gig worker is accepted`);
+
+    const walletData = await Promise.all(
+      events.map(async (event) => {
+        let acceptedMembers = [];
+        try {
+          acceptedMembers = typeof event.accepted_members === 'string' 
+            ? JSON.parse(event.accepted_members) 
+            : event.accepted_members || [];
+        } catch (error) {
+          console.error(`Error parsing accepted_members for event ${event.id}:`, error);
+          acceptedMembers = [];
+        }
+
+        let organizerDetails = null;
+        if (event.organizer_phone_number) {
+          const { data: company, error: companyError } = await supabase
+            .from('company_registration')
+            .select('company_name, contact_person_name')
+            .eq('phone_number', event.organizer_phone_number)
+            .single();
+
+          if (!companyError && company) {
+            organizerDetails = {
+              company_name: company.company_name,
+              contact_person: company.contact_person_name
+            };
+          }
+        }
+
+        const { data: payment, error: paymentError } = await supabase
+          .from('payments')
+          .select('payment_status, payment_id, created_at')
+          .eq('event_id', event.id)
+          .single();
+
+        let paymentStatus = 'pending';
+        let canRaiseComplaint = false;
+        
+        if (payment) {
+          if (payment.payment_status === 'completed') {
+            paymentStatus = 'received';
+          } else if (payment.payment_status === 'failed') {
+            paymentStatus = 'raise_complaint';
+            canRaiseComplaint = true;
+          }
+        }
+
+        return {
+          event_id: event.id,
+          event_name: event.event_name || 'Unnamed Event',
+          event_details: {
+            start_date: event.start_date,
+            end_date: event.end_date,
+            location: event.location,
+            organizer: organizerDetails
+          },
+          payment: {
+            total_pay: event.total_pay || 0,
+            status: paymentStatus,
+            can_raise_complaint: canRaiseComplaint,
+            payment_id: payment?.payment_id || null,
+            last_updated: payment?.created_at || event.created_at
+          },
+          event_created_at: event.created_at
+        };
+      })
+    );
+
+    const summary = {
+      total_accepted_events: walletData.length,
+      total_pending_payments: walletData.filter(item => item.payment.status === 'pending').length,
+      total_received_payments: walletData.filter(item => item.payment.status === 'received').length,
+      total_complaint_events: walletData.filter(item => item.payment.can_raise_complaint).length,
+      total_earnings_pending: walletData
+        .filter(item => item.payment.status === 'pending')
+        .reduce((sum, item) => sum + (item.payment.total_pay || 0), 0),
+      total_earnings_received: walletData
+        .filter(item => item.payment.status === 'received')
+        .reduce((sum, item) => sum + (item.payment.total_pay || 0), 0)
+    };
+
+    res.status(200).json({
+      success: true,
+      message: 'Gig worker wallet data fetched successfully',
+      data: {
+        gig_worker: {
+          phone_number: gigWorker.phone_number,
+          first_name: gigWorker.first_name,
+          last_name: gigWorker.last_name,
+          full_name: `${gigWorker.first_name || ''} ${gigWorker.last_name || ''}`.trim()
+        },
+        summary,
+        events: walletData
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching gig worker wallet:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+// Pay Later API - Debug version to find the issue
+app.post('/api/pay-later', async (req, res) => {
+  try {
+    const { event_id, organizer_phone_number } = req.body;
+
+    console.log('=== PAY LATER DEBUG START ===');
+    console.log('Request data:', { event_id, organizer_phone_number });
+
+    if (!event_id || !organizer_phone_number) {
+      return res.status(400).json({
+        success: false,
+        error: 'Event ID and organizer phone number are required'
+      });
+    }
+
+    // Step 1: Check if event exists
+    const { data: event, error: eventError } = await supabase
+      .from('event_create')
+      .select('id, event_name, organizer_phone_number')
+      .eq('id', event_id)
+      .eq('organizer_phone_number', organizer_phone_number)
+      .single();
+
+    if (eventError || !event) {
+      console.log('❌ Event not found or not authorized');
+      return res.status(403).json({
+        success: false,
+        error: 'Event not found or you are not the organizer'
+      });
+    }
+
+    console.log('✅ Event found:', event.id, event.event_name);
+
+    // Step 2: Check if payment already exists
+    const { data: existingPayment, error: paymentCheckError } = await supabase
+      .from('payments')
+      .select('*')
+      .eq('event_id', event.id)
+      .single();
+
+    console.log('🔍 Existing payment check:', { 
+      existingPayment, 
+      paymentCheckError,
+      hasExistingPayment: !!existingPayment 
+    });
+
+    let paymentData = null;
+
+    if (!existingPayment) {
+      // Step 3: Create NEW payment record
+      const payLaterId = `pay_later_${event.id}_${Date.now()}`;
+      console.log('💰 Creating new payment with ID:', payLaterId);
+      
+      const { data: newPayment, error: paymentError } = await supabase
+        .from('payments')
+        .insert([{
+          payment_status: 'pending',
+          payment_id: payLaterId,
+          event_id: event.id,
+          organizer_phone_number: organizer_phone_number
+        }])
+        .select('*')
+        .single();
+
+      console.log('💳 Payment creation result:', { 
+        newPayment, 
+        paymentError,
+        success: !!newPayment,
+        error: paymentError?.message 
+      });
+
+      if (paymentError) {
+        console.log('❌ Payment creation FAILED:', paymentError);
+      } else {
+        paymentData = newPayment;
+        console.log('✅ Payment creation SUCCESS:', newPayment);
+      }
+    } else {
+      paymentData = existingPayment;
+      console.log('ℹ️ Using existing payment:', existingPayment);
+    }
+
+    // Step 4: Create chat room
+    const { data: existingChatRoom, error: chatError } = await supabase
+      .from('chat_rooms')
+      .select('id')
+      .eq('event_id', event_id)
+      .single();
+
+    console.log('💬 Existing chat room check:', { 
+      existingChatRoom, 
+      chatError,
+      hasChatRoom: !!existingChatRoom 
+    });
+
+    let chatRoomData = existingChatRoom;
+
+    if (!existingChatRoom) {
+      const roomName = `${event.event_name} Chat Room`;
+      console.log('🗨️ Creating new chat room:', roomName);
+      
+      const { data: newChatRoom, error: createError } = await supabase
+        .from('chat_rooms')
+        .insert([{ 
+          event_id: event.id, 
+          room_name: roomName
+        }])
+        .select('id, room_name')
+        .single();
+
+      console.log('💬 Chat room creation result:', { 
+        newChatRoom, 
+        createError,
+        success: !!newChatRoom 
+      });
+
+      if (createError) {
+        console.log('❌ Chat room creation FAILED:', createError);
+      } else {
+        chatRoomData = newChatRoom;
+        console.log('✅ Chat room creation SUCCESS:', newChatRoom);
+      }
+    }
+
+    console.log('=== PAY LATER DEBUG END ===');
+
+    res.status(201).json({
+      success: true,
+      message: 'Pay Later option selected successfully',
+      data: {
+        event_id: event.id,
+        room_id: chatRoomData?.id,
+        payment_status: paymentData?.payment_status || 'pending',
+        payment_id: paymentData?.payment_id || 'not_created'
+      }
+    });
+
+  } catch (error) {
+    console.error('💥 Error in pay later:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
+
+// API to raise payment complaint 
+app.post('/api/gig-worker/raise-complaint', async (req, res) => { 
+  try {
+    const { event_id, phone_number, complaint_reason } = req.body;
+
+    if (!event_id || !phone_number || !complaint_reason) {
+      return res.status(400).json({
+        success: false,
+        error: 'Event ID, phone number, and complaint reason are required'
+      });
+    }
+
+    const { data: event, error: eventError } = await supabase
+      .from('event_create')
+      .select('accepted_members')
+      .eq('id', event_id)
+      .contains('accepted_members', [phone_number])
+      .single();
+
+    if (eventError || !event) {
+      return res.status(403).json({
+        success: false,
+        error: 'You are not authorized to raise complaint for this event'
+      });
+    }
+
+    const { data: complaint, error: complaintError } = await supabase
+      .from('payment_complaints')
+      .insert([{
+        event_id: event_id,
+        gig_worker_phone: phone_number,
+        complaint_reason: complaint_reason,
+        status: 'pending',
+        created_at: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (complaintError) {
+      console.error('Error creating complaint:', complaintError);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to raise complaint'
+      });
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Complaint raised successfully',
+      data: complaint
+    });
+
+  } catch (error) {
+    console.error('Error raising complaint:', error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error'
+    });
+  }
+});
 
 app.post("/upload", upload.array("files", 5), async (req, res) => {
     try {
@@ -5699,8 +6686,8 @@ app.get('/api/chat/rooms', async (req, res) => {
 
         const paymentStatus =
           payments && payments.length > 0 ? payments[0].payment_status : 'pending';
-        if (paymentStatus !== 'completed') {
-          return null;
+       if (paymentStatus !== 'completed' && !chatRoom) { 
+          return null;    
         }
 
         // If no chat room exists, create one
@@ -5883,9 +6870,6 @@ app.get('/api/chat/event/:event_id', async (req, res) => {
 });
 
 
-
-// 3.  This API fetches all messages for a chat room
-
 // 3. This API fetches all messages for a chat room
 app.get("/messages", async (req, res) => {
   const { room_id, phone_number } = req.query;
@@ -6047,9 +7031,6 @@ app.get("/messages", async (req, res) => {
   }
 });
 
-
-
-
 // 4. This API fetches event details, including the description and selected crew members.
 
 app.get('/api/chat/event-details/:event_id', async (req, res) => {
@@ -6145,7 +7126,7 @@ app.get('/api/chat/event-details/:event_id', async (req, res) => {
 
 //5 . Add an HTTP Endpoint for Sending Messages
 
-// 5. Add an HTTP Endpoint for Sending Messages
+// HTTP Endpoint for Sending Messages
 app.post('/api/chat/join-and-send-message', async (req, res) => {
   try {
     const { room_id, phone_number, message } = req.body;
@@ -6166,7 +7147,7 @@ app.post('/api/chat/join-and-send-message', async (req, res) => {
     }
 
     const phoneRegex = /^\+?[1-9]\d{1,14}$/;
-    if (!phoneRegex.test(phone_number)) {
+    if (!phoneRegex.test(phone_number)) { 
       return res.status(400).json({
         success: false,
         error: 'Invalid phone_number format. Must be a valid phone number with optional country code.',
@@ -6216,7 +7197,7 @@ app.post('/api/chat/join-and-send-message', async (req, res) => {
       });
     }
 
-    // Insert message
+    // Insert message and get server-generated timestamp
     const { data: savedMessage, error: messageError } = await supabase
       .from('chat_messages')
       .insert([{ room_id, phone_number, message }])
@@ -6232,18 +7213,18 @@ app.post('/api/chat/join-and-send-message', async (req, res) => {
       });
     }
 
-    // Dynamically resolve sender_name
+    // Resolve sender name from company_registration or user1 table
     let senderName = 'Unknown';
 
-    // Try to fetch from company (organizers)
-    const { data: company } = await supabase
-      .from('company')
+    // Try to fetch from company_registration (organizers)
+    const { data: companyData } = await supabase
+      .from('company_registration')
       .select('company_name')
       .eq('phone_number', phone_number)
       .maybeSingle();
 
-    if (company) {
-      senderName = company.company_name;
+    if (companyData) {
+      senderName = companyData.company_name;
     } else {
       // Try to fetch from gig worker (user1)
       const { data: user1 } = await supabase
@@ -6257,7 +7238,7 @@ app.post('/api/chat/join-and-send-message', async (req, res) => {
       }
     }
 
-    // Broadcast via WebSocket
+    // Broadcast via WebSocket with proper timestamp
     const roomClients = rooms.get(room_id) || new Set();
     roomClients.forEach((client) => {
       if (client.readyState === WebSocket.OPEN) {
@@ -6267,7 +7248,7 @@ app.post('/api/chat/join-and-send-message', async (req, res) => {
           phone_number,
           sender_name: senderName,
           message,
-          timestamp: savedMessage.timestamp,
+          timestamp: savedMessage.timestamp, // Use server-generated timestamp
         }));
       }
     });
@@ -6288,7 +7269,81 @@ app.post('/api/chat/join-and-send-message', async (req, res) => {
   }
 });
 
+app.get('/api/event/:event_id/details', async (req, res) => {
+  try {
+    const { event_id } = req.params;
 
+    // Validate event_id
+    if (!event_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'Event ID is required'
+      });
+    }
+
+    // Fetch event details from event_create table
+    const { data: event, error: eventError } = await supabase
+      .from('event_create')
+      .select(`
+        event_name,
+        organizer_phone_number,
+        poster_file,
+        accepted_members
+      `)
+      .eq('id', event_id)
+      .single();
+
+    if (eventError || !event) {
+      console.error('Supabase Fetch Error (event):', eventError);
+      return res.status(404).json({
+        success: false,
+        error: 'Event not found',
+        details: eventError?.message
+      });
+    }
+
+    // Fetch accepted gig workers details from user1 table
+    let acceptedWorkers = [];
+    if (event.accepted_members && event.accepted_members.length > 0) {
+      const { data: workers, error: workersError } = await supabase
+        .from('user1')
+        .select('phone_number, first_name, last_name, profile_pic')
+        .in('phone_number', event.accepted_members);
+
+      if (workersError) {
+        console.error('Supabase Fetch Error (workers):', workersError);
+        // Continue even if worker fetch fails, return empty workers array
+      } else {
+        acceptedWorkers = workers || [];
+      }
+    }
+
+    // Format the response
+    const response = {
+      success: true,
+      data: {
+        event_name: event.event_name || 'Unnamed Event',
+        organizer_phone_number: event.organizer_phone_number || 'N/A',
+        poster_file: event.poster_file || null,
+        accepted_workers: acceptedWorkers.map(worker => ({
+          phone_number: worker.phone_number,
+          name: `${worker.first_name || ''} ${worker.last_name || ''}`.trim(),
+          profile_pic: worker.profile_pic || null
+        }))
+      }
+    };
+
+    res.status(200).json(response);
+
+  } catch (error) {
+    console.error('Error in event details API:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
 
 // CHAT-ROOM
 
@@ -7167,7 +8222,7 @@ app.get('/api/v2/company/not-verified-members', async (req, res) => {
       .from('company_registration')
       .select(`phone_number, company_name, company_status, average_rating,
                account_number, gst_number, contact_person_name, email_id,
-               ifsc_code, bank_name, company_profile`)
+               ifsc_code, bank_name, company_profile,company_type,cin,pan`)
       .eq('company_status', 'not-verified');
 
     if (error) throw error;
@@ -8012,7 +9067,7 @@ app.post('/api/remove-application', async (req, res) => {
 
     // 2. Delete images from Supabase Storage (if any)
     if (application?.images?.length) {
-      const fileNames = application.images.map(url => {
+      const fileNames = application.images.map(url => {  
         // Extract file name from the URL
         const parts = url.split('/');
         return parts[parts.length - 1];
@@ -8075,6 +9130,4 @@ app.post('/api/remove-application', async (req, res) => {
 
 
 const PORT = process.env.PORT || 3000;
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server running on port ${PORT}`);
-});
+server.listen(PORT, () => console.log(`✅ Server running on port ${PORT}`));
