@@ -7615,6 +7615,241 @@ app.post('/api/v2/ratings/worker-to-company', async (req, res) => {
   }
 });
 
+app.post('/api/v2/send-notification', async (req, res) => {
+  try {
+    const { 
+      phone_numbers, // Single phone or array of phones
+      target_type,   // 'all_users', 'all_companies', 'specific'
+      title, 
+      body 
+    } = req.body;
+
+    // Input validation
+    if (!title || !body) {
+      return res.status(400).json({
+        success: false,
+        error: 'title and body are required'
+      });
+    }
+
+    if (!target_type) {
+      return res.status(400).json({
+        success: false,
+        error: 'target_type is required (specific, all_users, or all_companies)'
+      });
+    }
+
+    if (target_type === 'specific' && !phone_numbers) {
+      return res.status(400).json({
+        success: false,
+        error: 'phone_numbers is required when target_type is "specific"'
+      });
+    }
+
+    let fcmTokens = [];
+    let targetDescription = '';
+
+    // Get FCM tokens based on target type
+    switch (target_type) {
+      case 'specific':
+        const phones = Array.isArray(phone_numbers) ? phone_numbers : [phone_numbers];
+        const uniquePhones = [...new Set(phones)];
+        
+        console.log(`[${new Date().toISOString()}] Fetching tokens for ${uniquePhones.length} specific phone numbers`);
+        
+        for (const phone of uniquePhones) {
+          // Check user1 table (Gig Workers)
+          const { data: user } = await supabase
+            .from('user1')
+            .select('fcm_token, first_name, last_name')
+            .eq('phone_number', phone)
+            .not('fcm_token', 'is', null)
+            .single();
+
+          if (user && user.fcm_token) {
+            fcmTokens.push({
+              token: user.fcm_token,
+              phone: phone,
+              name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown User',
+              type: 'gig_worker'
+            });
+            continue;
+          }
+
+          // Check company_registration table (Organizers)
+          const { data: company } = await supabase
+            .from('company_registration')
+            .select('fcm_token, company_name')
+            .eq('phone_number', phone)
+            .not('fcm_token', 'is', null)
+            .single();
+
+          if (company && company.fcm_token) {
+            fcmTokens.push({
+              token: company.fcm_token,
+              phone: phone,
+              name: company.company_name || 'Unknown Company',
+              type: 'organizer'
+            });
+          }
+        }
+        
+        targetDescription = `${uniquePhones.length} specific phone numbers`;
+        break;
+
+      case 'all_users':
+        console.log(`[${new Date().toISOString()}] Fetching tokens for all gig workers`);
+        
+        const { data: allUsers, error: usersError } = await supabase
+          .from('user1')
+          .select('fcm_token, phone_number, first_name, last_name')
+          .not('fcm_token', 'is', null);
+
+        if (!usersError && allUsers) {
+          fcmTokens = allUsers.map(user => ({
+            token: user.fcm_token,
+            phone: user.phone_number,
+            name: `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown User',
+            type: 'gig_worker'
+          }));
+        }
+        
+        targetDescription = 'all gig workers';
+        break;
+
+      case 'all_companies':
+        console.log(`[${new Date().toISOString()}] Fetching tokens for all companies`);
+        
+        const { data: allCompanies, error: companiesError } = await supabase
+          .from('company_registration')
+          .select('fcm_token, phone_number, company_name')
+          .not('fcm_token', 'is', null);
+
+        if (!companiesError && allCompanies) {
+          fcmTokens = allCompanies.map(company => ({
+            token: company.fcm_token,
+            phone: company.phone_number,
+            name: company.company_name || 'Unknown Company',
+            type: 'organizer'
+          }));
+        }
+        
+        targetDescription = 'all companies';
+        break;
+
+      default:
+        return res.status(400).json({
+          success: false,
+          error: 'Invalid target_type. Use: specific, all_users, or all_companies'
+        });
+    }
+
+    // Filter out invalid tokens
+    const validTokens = fcmTokens.filter(item => item.token && item.token.trim() !== '');
+    
+    if (validTokens.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: `No FCM tokens found for ${targetDescription}`,
+        target_type,
+        phone_numbers: target_type === 'specific' ? phone_numbers : undefined
+      });
+    }
+
+    console.log(`[${new Date().toISOString()}] Found ${validTokens.length} valid FCM tokens for ${targetDescription}`);
+
+    // Send notifications
+    const results = [];
+    const url = `${SUPABASE_URL}/functions/v1/send-notification`;
+
+    // Send to each token individually (since Edge Function expects single token)
+    for (const item of validTokens) {
+      try {
+        const response = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${SUPABASE_KEY}`,
+          },
+          body: JSON.stringify({
+            fcm_token: item.token, // Single token
+            title: title,
+            body: body
+          }),
+        });
+
+        const result = await response.json();
+        
+        results.push({
+          phone: item.phone,
+          name: item.name,
+          type: item.type,
+          token_preview: item.token.substring(0, 20) + '...',
+          success: response.ok,
+          response: result
+        });
+
+        // Small delay to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 50));
+        
+      } catch (tokenError) {
+        results.push({
+          phone: item.phone,
+          name: item.name,
+          type: item.type,
+          token_preview: item.token.substring(0, 20) + '...',
+          success: false,
+          error: tokenError.message
+        });
+      }
+    }
+
+    const successful = results.filter(r => r.success).length;
+    const failed = results.length - successful;
+
+    // Summary by type
+    const gigWorkersSent = results.filter(r => r.success && r.type === 'gig_worker').length;
+    const organizersSent = results.filter(r => r.success && r.type === 'organizer').length;
+
+    console.log(`[${new Date().toISOString()}] Notification campaign completed: ${successful}/${results.length} successful`);
+
+    res.status(200).json({
+      success: true,
+      message: `Notification campaign completed: ${successful} successful, ${failed} failed`,
+      data: {
+        campaign: {
+          target_type,
+          target_description: targetDescription,
+          title,
+          body,
+          total_attempted: results.length,
+          successful,
+          failed,
+          success_rate: `${((successful / results.length) * 100).toFixed(1)}%`
+        },
+        breakdown: {
+          gig_workers: gigWorkersSent,
+          organizers: organizersSent,
+          total_sent: successful
+        },
+        details: {
+          total_results: results.length,
+          results: results
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error(`[${new Date().toISOString()}] Error in notification campaign:`, error.message);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+
 app.post('/api/v2/ratings/company-to-worker', async (req, res) => {
   try {
     const { company_phone, worker_phone, event_id, rating, feedback } = req.body;
